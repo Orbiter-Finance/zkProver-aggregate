@@ -5,12 +5,17 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
 [dependencies]
+ff = { version = "0.13", features = ["derive"] }
 rand = "0.8.5"
 num-integer = "0.1.45"
 itertools = "0.11.0"
 thiserror = "1.0.38"
-winterfell = { git = "https://github.com/facebook/winterfell.git" }
+
+winterfell = { git = "https://github.com/facebook/winterfell.git", tag = "v0.6.4"}
+winter-utils = { package = "winter-utils", git = "https://github.com/facebook/winterfell.git",  tag = "v0.6.4", default-features = false }
+
 cairo-vm = { version = "0.6.0", features = ["cairo-1-hints"] }
 lambdaworks-math = { git = "https://github.com/lambdaclass/lambdaworks", rev = "a17b951" }
 lambdaworks-crypto = { git = "https://github.com/lambdaclass/lambdaworks", rev = "a17b951" }

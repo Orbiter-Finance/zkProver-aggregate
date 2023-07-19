@@ -200,3 +200,23 @@ pub fn run_program(
     ))
 }
 
+mod tests {
+    use crate::cairo::register_states;
+    use super::*;
+    use super::run_program;
+
+    #[test]
+    fn test_parse_cairo_file() {
+        let base_dir = env!("CARGO_MANIFEST_DIR");
+        let json_filename = base_dir.to_owned() + "/cairo_programs/fibonacci_cairo1.casm";
+        let program_content = std::fs::read(json_filename).unwrap();
+
+        let (register_states, memory, program_size, _rg_in_out) = run_program(
+            None, 
+            CairoLayout::Plain, 
+            &program_content
+        ).unwrap();
+
+
+    }
+}
