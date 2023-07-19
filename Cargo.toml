@@ -1,0 +1,24 @@
+[package]
+name = "zkProver-aggregate"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8.5"
+num-integer = "0.1.45"
+itertools = "0.11.0"
+thiserror = "1.0.38"
+winterfell = { git = "https://github.com/facebook/winterfell.git" }
+cairo-vm = { version = "0.6.0", features = ["cairo-1-hints"] }
+lambdaworks-math = { git = "https://github.com/lambdaclass/lambdaworks", rev = "a17b951" }
+lambdaworks-crypto = { git = "https://github.com/lambdaclass/lambdaworks", rev = "a17b951" }
+cairo-lang-starknet = "1.1.0"
+
+bincode = { version = "2.0.0-rc.2", tag = "v2.0.0-rc.2", git = "https://github.com/bincode-org/bincode.git" }
+
+serde_json = "1.0"
+
+[dev-dependencies]
+hex = "0.4.3"
