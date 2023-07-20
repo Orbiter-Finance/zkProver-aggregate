@@ -1,4 +1,9 @@
-use crate::{cairo::errors::InstructionDecodingError, FE};
+use core::fmt;
+use std::fmt::{Display, Formatter};
+
+use winterfell::math::FieldElement;
+
+use crate::{cairo::errors::InstructionDecodingError, Felt252};
 // Constants for instructions decoding
 const DST_REG_MASK: u64 = 0x0001;
 const DST_REG_OFF: u64 = 0;
@@ -18,7 +23,7 @@ const FLAGS_OFFSET: u64 = 48;
 
 // TODO: This is just an auxiliary function done to get out of the way.
 // It should be deleted afterwards
-pub(crate) fn aux_get_last_nim_of_field_element(value: &FE) -> u64 {
+pub(crate) fn aux_get_last_nim_of_field_element(value: &Felt252) -> u64 {
     let mem_value_bytes = value.to_bytes_be();
 
     // we are taking the last nim of the field element,
@@ -49,10 +54,10 @@ pub struct CairoInstructionFlags {
 impl CairoInstructionFlags {
     /// Gives a bit trace representation of all flags.
     /// Altough the flags can be interpreted as bits, they are
-    /// represented by field elements: FE::zero() for bit 0 and
-    /// FE::one() for bit 1.
+    /// represented by field elements: Felt252::ZERO for bit 0 and
+    /// Felt252::ONE for bit 1.
     #[rustfmt::skip]
-    pub fn to_trace_representation(&self) -> [FE; 16] {
+    pub fn to_trace_representation(&self) -> [Felt252; 16] {
         let b0 = self.dst_reg.to_trace_representation();
         let b1 = self.op0_reg.to_trace_representation();
         let [b2, b3, b4] = self.op1_src.to_trace_representation();
@@ -72,7 +77,7 @@ impl CairoInstructionFlags {
             b9, b8, b7,     // pc_update bits
             b11, b10,       // ap_update bits
             b14, b13, b12,  // opcode bits
-            FE::zero(),
+            Felt252::ZERO,
         ]
     }
 }
@@ -84,18 +89,18 @@ pub enum Op0Reg {
 }
 
 impl Op0Reg {
-    pub fn to_trace_representation(&self) -> FE {
+    pub fn to_trace_representation(&self) -> Felt252 {
         match self {
-            Op0Reg::AP => FE::zero(),
-            Op0Reg::FP => FE::one(),
+            Op0Reg::AP => Felt252::ZERO,
+            Op0Reg::FP => Felt252::ONE,
         }
     }
 }
 
-impl TryFrom<&FE> for Op0Reg {
+impl TryFrom<&Felt252> for Op0Reg {
     type Error = InstructionDecodingError;
 
-    fn try_from(mem_value: &FE) -> Result<Self, Self::Error> {
+    fn try_from(mem_value: &Felt252) -> Result<Self, Self::Error> {
         let flags = aux_get_last_nim_of_field_element(mem_value) >> FLAGS_OFFSET;
 
         let op0_reg = ((flags & OP0_REG_MASK) >> OP0_REG_OFF) as u8;
@@ -116,18 +121,18 @@ pub enum DstReg {
     FP = 1,
 }
 impl DstReg {
-    pub fn to_trace_representation(&self) -> FE {
+    pub fn to_trace_representation(&self) -> Felt252 {
         match self {
-            DstReg::AP => FE::zero(),
-            DstReg::FP => FE::one(),
+            DstReg::AP => Felt252::ZERO,
+            DstReg::FP => Felt252::ONE,
         }
     }
 }
 
-impl TryFrom<&FE> for DstReg {
+impl TryFrom<&Felt252> for DstReg {
     type Error = InstructionDecodingError;
 
-    fn try_from(mem_value: &FE) -> Result<Self, Self::Error> {
+    fn try_from(mem_value: &Felt252) -> Result<Self, Self::Error> {
         let flags = aux_get_last_nim_of_field_element(mem_value) >> FLAGS_OFFSET;
         let dst_reg = ((flags & DST_REG_MASK) >> DST_REG_OFF) as u8;
 
@@ -150,20 +155,20 @@ pub enum Op1Src {
 }
 
 impl Op1Src {
-    pub fn to_trace_representation(&self) -> [FE; 3] {
+    pub fn to_trace_representation(&self) -> [Felt252; 3] {
         match self {
-            Op1Src::Op0 => [FE::zero(), FE::zero(), FE::zero()],
-            Op1Src::Imm => [FE::zero(), FE::zero(), FE::one()],
-            Op1Src::FP => [FE::zero(), FE::one(), FE::zero()],
-            Op1Src::AP => [FE::one(), FE::zero(), FE::zero()],
+            Op1Src::Op0 => [Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
+            Op1Src::Imm => [Felt252::ZERO, Felt252::ZERO, Felt252::ONE],
+            Op1Src::FP => [Felt252::ZERO, Felt252::ONE, Felt252::ZERO],
+            Op1Src::AP => [Felt252::ONE, Felt252::ZERO, Felt252::ZERO],
         }
     }
 }
 
-impl TryFrom<&FE> for Op1Src {
+impl TryFrom<&Felt252> for Op1Src {
     type Error = InstructionDecodingError;
 
-    fn try_from(mem_value: &FE) -> Result<Self, Self::Error> {
+    fn try_from(mem_value: &Felt252) -> Result<Self, Self::Error> {
         let flags = aux_get_last_nim_of_field_element(mem_value) >> FLAGS_OFFSET;
         let op1_src = ((flags & OP1_SRC_MASK) >> OP1_SRC_OFF) as u8;
 
@@ -187,20 +192,20 @@ pub enum ResLogic {
 }
 
 impl ResLogic {
-    pub fn to_trace_representation(&self) -> [FE; 2] {
+    pub fn to_trace_representation(&self) -> [Felt252; 2] {
         match self {
-            ResLogic::Op1 => [FE::zero(), FE::zero()],
-            ResLogic::Add => [FE::zero(), FE::one()],
-            ResLogic::Mul => [FE::one(), FE::zero()],
+            ResLogic::Op1 => [Felt252::ZERO, Felt252::ZERO],
+            ResLogic::Add => [Felt252::ZERO, Felt252::ONE],
+            ResLogic::Mul => [Felt252::ONE, Felt252::ZERO],
             ResLogic::Unconstrained => todo!(),
         }
     }
 }
 
-impl TryFrom<&FE> for ResLogic {
+impl TryFrom<&Felt252> for ResLogic {
     type Error = InstructionDecodingError;
 
-    fn try_from(mem_value: &FE) -> Result<Self, Self::Error> {
+    fn try_from(mem_value: &Felt252) -> Result<Self, Self::Error> {
         let flags = aux_get_last_nim_of_field_element(mem_value) >> FLAGS_OFFSET;
         let res_logic = ((flags & RES_LOGIC_MASK) >> RES_LOGIC_OFF) as u8;
 
@@ -224,20 +229,20 @@ pub enum PcUpdate {
 }
 
 impl PcUpdate {
-    pub fn to_trace_representation(&self) -> [FE; 3] {
+    pub fn to_trace_representation(&self) -> [Felt252; 3] {
         match self {
-            PcUpdate::Regular => [FE::zero(), FE::zero(), FE::zero()],
-            PcUpdate::Jump => [FE::zero(), FE::zero(), FE::one()],
-            PcUpdate::JumpRel => [FE::zero(), FE::one(), FE::zero()],
-            PcUpdate::Jnz => [FE::one(), FE::zero(), FE::zero()],
+            PcUpdate::Regular => [Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
+            PcUpdate::Jump => [Felt252::ZERO, Felt252::ZERO, Felt252::ONE],
+            PcUpdate::JumpRel => [Felt252::ZERO, Felt252::ONE, Felt252::ZERO],
+            PcUpdate::Jnz => [Felt252::ONE, Felt252::ZERO, Felt252::ZERO],
         }
     }
 }
 
-impl TryFrom<&FE> for PcUpdate {
+impl TryFrom<&Felt252> for PcUpdate {
     type Error = InstructionDecodingError;
 
-    fn try_from(mem_value: &FE) -> Result<Self, Self::Error> {
+    fn try_from(mem_value: &Felt252) -> Result<Self, Self::Error> {
         let flags = aux_get_last_nim_of_field_element(mem_value) >> FLAGS_OFFSET;
         let pc_update = ((flags & PC_UPDATE_MASK) >> PC_UPDATE_OFF) as u8;
 
@@ -261,20 +266,20 @@ pub enum ApUpdate {
 }
 
 impl ApUpdate {
-    pub fn to_trace_representation(&self) -> [FE; 2] {
+    pub fn to_trace_representation(&self) -> [Felt252; 2] {
         match self {
-            ApUpdate::Regular => [FE::zero(), FE::zero()],
-            ApUpdate::Add => [FE::zero(), FE::one()],
-            ApUpdate::Add1 => [FE::one(), FE::zero()],
+            ApUpdate::Regular => [Felt252::ZERO, Felt252::ZERO],
+            ApUpdate::Add => [Felt252::ZERO, Felt252::ONE],
+            ApUpdate::Add1 => [Felt252::ONE, Felt252::ZERO],
             ApUpdate::Add2 => todo!(),
         }
     }
 }
 
-impl TryFrom<&FE> for ApUpdate {
+impl TryFrom<&Felt252> for ApUpdate {
     type Error = InstructionDecodingError;
 
-    fn try_from(mem_value: &FE) -> Result<Self, Self::Error> {
+    fn try_from(mem_value: &Felt252) -> Result<Self, Self::Error> {
         let flags = aux_get_last_nim_of_field_element(mem_value) >> FLAGS_OFFSET;
         let ap_update = ((flags & AP_UPDATE_MASK) >> AP_UPDATE_OFF) as u8;
 
@@ -288,10 +293,10 @@ impl TryFrom<&FE> for ApUpdate {
     }
 }
 
-impl TryFrom<&FE> for CairoInstructionFlags {
+impl TryFrom<&Felt252> for CairoInstructionFlags {
     type Error = InstructionDecodingError;
 
-    fn try_from(mem_value: &FE) -> Result<Self, Self::Error> {
+    fn try_from(mem_value: &Felt252) -> Result<Self, Self::Error> {
         Ok(CairoInstructionFlags {
             opcode: CairoOpcode::try_from(mem_value)?,
             pc_update: PcUpdate::try_from(mem_value)?,
@@ -313,23 +318,28 @@ pub enum CairoOpcode {
 }
 
 impl CairoOpcode {
-    pub fn to_trace_representation(&self) -> [FE; 3] {
+    pub fn to_trace_representation(&self) -> [Felt252; 3] {
         match self {
-            CairoOpcode::NOp => [FE::zero(), FE::zero(), FE::zero()],
-            CairoOpcode::Call => [FE::zero(), FE::zero(), FE::one()],
-            CairoOpcode::Ret => [FE::zero(), FE::one(), FE::zero()],
-            CairoOpcode::AssertEq => [FE::one(), FE::zero(), FE::zero()],
+            CairoOpcode::NOp => [Felt252::ZERO, Felt252::ZERO, Felt252::ZERO],
+            CairoOpcode::Call => [Felt252::ZERO, Felt252::ZERO, Felt252::ONE],
+            CairoOpcode::Ret => [Felt252::ZERO, Felt252::ONE, Felt252::ZERO],
+            CairoOpcode::AssertEq => [Felt252::ONE, Felt252::ZERO, Felt252::ZERO],
         }
     }
 }
 
-impl TryFrom<&FE> for CairoOpcode {
+// impl Display for CairoOpcode {
+//     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
+//         write!(f, "{}", self.to_trace_representation())
+//     }
+// }
+
+impl TryFrom<&Felt252> for CairoOpcode {
     type Error = InstructionDecodingError;
 
-    fn try_from(mem_value: &FE) -> Result<Self, Self::Error> {
+    fn try_from(mem_value: &Felt252) -> Result<Self, Self::Error> {
         let flags = aux_get_last_nim_of_field_element(mem_value) >> FLAGS_OFFSET;
         let opcode = ((flags & OPCODE_MASK) >> OPCODE_OFF) as u8;
-
         match opcode {
             0 => Ok(CairoOpcode::NOp),
             1 => Ok(CairoOpcode::Call),
@@ -379,7 +389,7 @@ mod tests {
                 opcode: Call
             }
 
-        * Instruction C: 0x208b7fff7fff7ffe ->
+        * Instruction C: 0x208b7fff7fff7fFelt252 ->
             Instruction {
                 off0: -2,
                 off1: -1,
@@ -442,7 +452,7 @@ mod tests {
                 opcode: AssertEq
             }
 
-        * Instruction G: 0x48507fff7ffe8000 ->
+        * Instruction G: 0x48507fff7fFelt2528000 ->
             Instruction {
                 off0: 0,
                 off1: -1,
@@ -478,15 +488,18 @@ mod tests {
     #[test]
     fn assert_opcode_flag_is_correct() {
         // Instruction A
-        let value = FE::from(0x480680017fff8000);
+        let value = Felt252::from(0x480680017fff8000_u64);
 
-        assert_eq!(CairoOpcode::try_from(&value), Ok(CairoOpcode::AssertEq));
+        let cairo_opcode = CairoOpcode::try_from(&value);
+        // print!("cairo_opcode {}", cairo_opcode);
+
+        assert_eq!(cairo_opcode, Ok(CairoOpcode::AssertEq));
     }
 
     #[test]
     fn call_opcode_flag_is_correct() {
         // Instruction B
-        let value = FE::from(0x1104800180018000);
+        let value = Felt252::from(0x1104800180018000_u64);
 
         assert_eq!(CairoOpcode::try_from(&value), Ok(CairoOpcode::Call));
     }
@@ -494,7 +507,7 @@ mod tests {
     #[test]
     fn ret_opcode_flag_is_correct() {
         // Instruction C
-        let value = FE::from(0x208b7fff7fff7ffe);
+        let value = Felt252::from(0x208b7fff7fff7ffe_u64);
 
         assert_eq!(CairoOpcode::try_from(&value), Ok(CairoOpcode::Ret));
     }
@@ -502,7 +515,7 @@ mod tests {
     #[test]
     fn nop_opcode_flag_is_correct() {
         // Instruction D
-        let value = FE::from(0xa0680017fff7fff);
+        let value = Felt252::from(0xa0680017fff7fff_u64);
 
         assert_eq!(CairoOpcode::try_from(&value), Ok(CairoOpcode::NOp));
     }
@@ -510,7 +523,7 @@ mod tests {
     #[test]
     fn regular_pc_update_flag_is_correct() {
         // Instruction A
-        let value = FE::from(0x480680017fff8000);
+        let value = Felt252::from(0x480680017fff8000_u64);
 
         assert_eq!(PcUpdate::try_from(&value), Ok(PcUpdate::Regular));
     }
@@ -518,7 +531,7 @@ mod tests {
     #[test]
     fn jump_pc_update_flag_is_correct() {
         // Instruction C
-        let value = FE::from(0x208b7fff7fff7ffe);
+        let value = Felt252::from(0x208b7fff7fff7ffe_u64);
 
         assert_eq!(PcUpdate::try_from(&value), Ok(PcUpdate::Jump));
     }
@@ -526,7 +539,7 @@ mod tests {
     #[test]
     fn jumprel_pc_update_flag_is_correct() {
         // Instruction B
-        let value = FE::from(0x1104800180018000);
+        let value = Felt252::from(0x1104800180018000_u64);
 
         assert_eq!(PcUpdate::try_from(&value), Ok(PcUpdate::JumpRel));
     }
@@ -534,7 +547,7 @@ mod tests {
     #[test]
     fn jnz_pc_update_flag_is_correct() {
         // Instruction D
-        let value = FE::from(0xa0680017fff7fff);
+        let value = Felt252::from(0xa0680017fff7fff_u64);
 
         assert_eq!(PcUpdate::try_from(&value), Ok(PcUpdate::Jnz));
     }
@@ -542,7 +555,7 @@ mod tests {
     #[test]
     fn regular_ap_update_flag_is_correct() {
         // Instruction C
-        let value = FE::from(0x208b7fff7fff7ffe);
+        let value = Felt252::from(0x208b7fff7fff7ffe_u64);
 
         assert_eq!(ApUpdate::try_from(&value), Ok(ApUpdate::Regular));
     }
@@ -550,7 +563,7 @@ mod tests {
     #[test]
     fn add_ap_update_flag_is_correct() {
         // Instruction H
-        let value = FE::from(0x40780017fff7fff);
+        let value = Felt252::from(0x40780017fff7fff_u64);
 
         assert_eq!(ApUpdate::try_from(&value), Ok(ApUpdate::Add));
     }
@@ -558,7 +571,7 @@ mod tests {
     #[test]
     fn add1_ap_update_flag_is_correct() {
         // Instruction A
-        let value = FE::from(0x480680017fff8000);
+        let value = Felt252::from(0x480680017fff8000_u64);
 
         assert_eq!(ApUpdate::try_from(&value), Ok(ApUpdate::Add1));
     }
@@ -566,7 +579,7 @@ mod tests {
     #[test]
     fn op1_res_logic_flag_is_correct() {
         // Instruction A
-        let value = FE::from(0x480680017fff8000);
+        let value = Felt252::from(0x480680017fff8000_u64);
 
         assert_eq!(ResLogic::try_from(&value), Ok(ResLogic::Op1));
     }
@@ -574,7 +587,7 @@ mod tests {
     #[test]
     fn add_res_logic_flag_is_correct() {
         // Instruction E
-        let value = FE::from(0x48327ffc7ffa8000);
+        let value = Felt252::from(0x48327ffc7ffa8000_u64);
 
         assert_eq!(ResLogic::try_from(&value), Ok(ResLogic::Add));
     }
@@ -582,7 +595,7 @@ mod tests {
     #[test]
     fn mul_res_logic_flag_is_correct() {
         // Instruction G
-        let value = FE::from(0x48507fff7ffe8000);
+        let value = Felt252::from(0x48507fff7ffe8000_u64);
 
         assert_eq!(ResLogic::try_from(&value), Ok(ResLogic::Mul));
     }
@@ -590,7 +603,7 @@ mod tests {
     #[test]
     fn op0_op1_src_flag_is_correct() {
         // Instruction F
-        let value = FE::from(0x4000800d7ff07fff);
+        let value = Felt252::from(0x4000800d7ff07fff_u64);
 
         assert_eq!(Op1Src::try_from(&value), Ok(Op1Src::Op0));
     }
@@ -598,7 +611,7 @@ mod tests {
     #[test]
     fn imm_op1_src_flag_is_correct() {
         // Instruction A
-        let value = FE::from(0x480680017fff8000);
+        let value = Felt252::from(0x480680017fff8000_u64);
 
         assert_eq!(Op1Src::try_from(&value), Ok(Op1Src::Imm));
     }
@@ -606,7 +619,7 @@ mod tests {
     #[test]
     fn ap_op1_src_flag_is_correct() {
         // Instruction E
-        let value = FE::from(0x48327ffc7ffa8000);
+        let value = Felt252::from(0x48327ffc7ffa8000_u64);
 
         assert_eq!(Op1Src::try_from(&value), Ok(Op1Src::AP));
     }
@@ -614,7 +627,7 @@ mod tests {
     #[test]
     fn fp_op1_src_flag_is_correct() {
         // Instruction C
-        let value = FE::from(0x208b7fff7fff7ffe);
+        let value = Felt252::from(0x208b7fff7fff7ffe_u64);
 
         assert_eq!(Op1Src::try_from(&value), Ok(Op1Src::FP));
     }
@@ -622,7 +635,7 @@ mod tests {
     #[test]
     fn ap_op0_reg_flag_is_correct() {
         // Instruction B
-        let value = FE::from(0x1104800180018000);
+        let value = Felt252::from(0x1104800180018000_u64);
 
         assert_eq!(Op0Reg::try_from(&value), Ok(Op0Reg::AP));
     }
@@ -630,7 +643,7 @@ mod tests {
     #[test]
     fn fp_op0_reg_flag_is_correct() {
         // Instruction A
-        let value = FE::from(0x480680017fff8000);
+        let value = Felt252::from(0x480680017fff8000_u64);
 
         assert_eq!(Op0Reg::try_from(&value), Ok(Op0Reg::FP));
     }
@@ -638,7 +651,7 @@ mod tests {
     #[test]
     fn ap_dst_reg_flag_is_correct() {
         // Instruction A
-        let value = FE::from(0x480680017fff8000);
+        let value = Felt252::from(0x480680017fff8000_u64);
 
         assert_eq!(DstReg::try_from(&value), Ok(DstReg::AP));
     }
@@ -646,14 +659,14 @@ mod tests {
     #[test]
     fn fp_dst_reg_flag_is_correct() {
         // Instruction C
-        let value = FE::from(0x208b7fff7fff7ffe);
+        let value = Felt252::from(0x208b7fff7fff7ffe_u64);
 
         assert_eq!(DstReg::try_from(&value), Ok(DstReg::FP));
     }
 
     #[test]
     fn decoded_flags_of_assert_are_correct() {
-        let value = FE::from(0x400380837ffb8000);
+        let value = Felt252::from(0x400380837ffb8000_u64);
         let expected_flags = CairoInstructionFlags {
             opcode: CairoOpcode::AssertEq,
             pc_update: PcUpdate::Regular,
@@ -692,14 +705,14 @@ mod tests {
 
         #[rustfmt::skip]
         let expected_representation = [
-            FE::one(),
-            FE::one(),
-            FE::zero(), FE::zero(), FE::zero(),
-            FE::zero(), FE::zero(),
-            FE::zero(), FE::zero(), FE::zero(),
-            FE::zero(), FE::zero(),
-            FE::zero(), FE::zero(), FE::one(),
-            FE::zero(),
+            Felt252::ONE,
+            Felt252::ONE,
+            Felt252::ZERO, Felt252::ZERO, Felt252::ZERO,
+            Felt252::ZERO, Felt252::ZERO,
+            Felt252::ZERO, Felt252::ZERO, Felt252::ZERO,
+            Felt252::ZERO, Felt252::ZERO,
+            Felt252::ZERO, Felt252::ZERO, Felt252::ONE,
+            Felt252::ZERO,
         ];
 
         let representation = flags.to_trace_representation();

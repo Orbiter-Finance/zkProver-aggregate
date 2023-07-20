@@ -18,7 +18,10 @@ use winter_utils::{
     DeserializationError, Randomizable, Serializable,
 };
 
-use ff::{Field, PrimeField};
+
+use ff::{Field, PrimeField, derive::bitvec::macros::internal::funty::Numeric};
+
+use super::runner::run::Error;
 
 #[cfg(test)]
 mod tests;
@@ -39,6 +42,30 @@ impl Fr {
         Fr(value).mul(&R2)
     }
 
+    pub fn from_le_bytes(bytes: &[u8; 32]) -> Self {
+        let needed_bytes = bytes
+        .get(0..32 * 8).unwrap();
+
+        let mut limbs: [u64; 4] = [0; 4];
+
+        needed_bytes
+        .chunks_exact(8)
+        .rev()
+        .enumerate()
+        .try_for_each(|(i, chunk)| {
+            let limb = u64::from_le_bytes(
+                chunk
+                    .try_into()
+                    .map_err(|_| ()).unwrap(),
+            );
+            limbs[i] = limb;
+            Ok::<_, Error>(())
+        }).unwrap();
+
+        Fr(limbs).mul(&R2)
+
+    }
+
     pub fn to_raw(&self) -> BigInt {
         let limbs = self.0;
         let mut val = self.clone();
@@ -48,7 +75,13 @@ impl Fr {
 
     pub fn to_le_bytes(&self) -> Vec<u8> {
         let mut result = [0u8; 32];
-        write_le_bytes(self.0, &mut result);
+        write_le_bytes(self.to_raw().0, &mut result);
+        result.to_vec()
+    }
+
+    pub fn to_be_bytes(&self) -> Vec<u8> {
+        let mut result = [0u8; 32];
+        write_be_bytes(self.to_raw().0, &mut result);
         result.to_vec()
     }
 }
@@ -57,6 +90,12 @@ impl Fr {
 fn write_le_bytes(value: [u64; 4], out: &mut [u8]) {
     for (src, dst) in value.iter().cloned().zip(out.chunks_exact_mut(8)) {
         dst.copy_from_slice(&src.to_le_bytes());
+    }
+}
+
+fn write_be_bytes(value: [u64; 4], out: &mut [u8]) {
+    for (src, dst) in value.iter().rev().cloned().zip(out.chunks_exact_mut(8)) {
+        dst.copy_from_slice(&src.to_be_bytes());
     }
 }
 
@@ -329,6 +368,18 @@ impl BaseElement{
     pub fn to_raw(&self) -> BigInt {
         self.0.to_raw()
     }
+
+    pub fn from_bytes_le(bytes: &[u8; 32]) -> Self {
+        BaseElement(Fr::from_le_bytes(bytes))
+    }
+
+    pub fn to_bytes_le(&self) -> Vec<u8>{
+        self.0.to_le_bytes()
+    }
+
+    pub fn to_bytes_be(&self) -> Vec<u8>{
+        self.0.to_be_bytes()
+    }
 }
 
 impl StarkField for BaseElement {
@@ -506,10 +557,22 @@ impl From<u128> for BaseElement {
     }
 }
 
+impl From<i64> for BaseElement {
+    fn from(value: i64) -> Self {
+        Self(Fr::from_raw([value as u64, 0, 0, 0]))
+    }
+}
+
 impl From<u64> for BaseElement {
     /// Converts a 64-bit value into a field element.
     fn from(value: u64) -> Self {
-        Self(Fr::from_raw([value, 0, 0, 0]))
+        Self(Fr::from_raw([value,0, 0, 0]))
+    }
+}
+
+impl From<i32> for BaseElement {
+    fn from(value: i32) -> Self {
+        Self(Fr::from_raw([value as u64, 0, 0 ,0]))
     }
 }
 
@@ -520,9 +583,23 @@ impl From<u32> for BaseElement {
     }
 }
 
+impl From<i16> for BaseElement {
+    /// Converts a 16-bit value into a field element.
+    fn from(value: i16) -> Self {
+        Self(Fr::from_raw([value as u64, 0, 0, 0]))
+    }
+}
+
 impl From<u16> for BaseElement {
     /// Converts a 16-bit value into a field element.
     fn from(value: u16) -> Self {
+        Self(Fr::from_raw([value as u64, 0, 0, 0]))
+    }
+}
+
+impl From<i8> for BaseElement {
+    /// Converts an 8-bit value into a field element.
+    fn from(value: i8) -> Self {
         Self(Fr::from_raw([value as u64, 0, 0, 0]))
     }
 }

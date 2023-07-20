@@ -1,7 +1,9 @@
-use crate::FE;
+
+
+use crate::Felt252;
 
 use super::errors::CairoImportError;
-// use crate::FE;
+
 use lambdaworks_math::traits::ByteConversion;
 use std::{collections::HashMap, fs};
 
@@ -10,17 +12,17 @@ use std::{collections::HashMap, fs};
 // correct or we should consider another type.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CairoMemory {
-    pub data: HashMap<u64, FE>,
+    pub data: HashMap<u64, Felt252>,
 }
 
 impl CairoMemory {
-    pub fn new(data: HashMap<u64, FE>) -> Self {
+    pub fn new(data: HashMap<u64, Felt252>) -> Self {
         Self { data }
     }
 
     /// Given a memory address, gets the value stored in it if
     /// the address exists.
-    pub fn get(&self, addr: &u64) -> Option<&FE> {
+    pub fn get(&self, addr: &u64) -> Option<&Felt252> {
         self.data.get(addr)
     }
 
@@ -47,12 +49,11 @@ impl CairoMemory {
         for i in 0..num_rows {
             let address =
                 u64::from_le_bytes(bytes[i * ROW_SIZE..i * ROW_SIZE + 8].try_into().unwrap());
-            let value = FE::from_bytes_le(
+            let value = Felt252::from_bytes_le(
                 bytes[i * ROW_SIZE + 8..i * ROW_SIZE + 40]
                     .try_into()
                     .unwrap(),
-            )
-            .unwrap();
+            );
 
             data.insert(address, value);
         }

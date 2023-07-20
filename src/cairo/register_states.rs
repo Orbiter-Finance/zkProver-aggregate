@@ -85,7 +85,8 @@ impl RegisterStates {
 
 #[cfg(test)]
 mod tests {
-    use crate::{cairo::decode::instruction_flags::*, FE};
+
+    use crate::{cairo::decode::instruction_flags::*, FE, Felt252};
 
     use super::*;
     use std::collections::HashMap;
@@ -187,8 +188,8 @@ mod tests {
     #[test]
     fn decode_instruction_flags_and_offsets() {
         let data = HashMap::from([
-            (1u64, FE::from(0x480680017fff8000)),
-            (2u64, FE::from(0x1104800180018000)),
+            (1u64, Felt252::from(0x480680017fff8000_u64)),
+            (2u64, Felt252::from(0x1104800180018000_u64)),
         ]);
 
         let memory = CairoMemory::new(data);

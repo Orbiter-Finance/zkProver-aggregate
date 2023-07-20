@@ -8,8 +8,18 @@ fn add() {
 
     // test addition within bounds
     assert_eq!(
+        BaseElement::from([57,43,0,0]),
+        BaseElement::from([57,0,0,0]) + BaseElement::from([0,43,0,0])
+    );
+
+    assert_eq!(
         BaseElement::from([100,0,0,0]),
         BaseElement::from([57,0,0,0]) + BaseElement::from([43,0,0,0])
+    );
+
+    assert_eq!(
+        BaseElement::ONE,
+        BaseElement::from([1,0,0,0]) + BaseElement::from([0,0,0,0])
     );
 }
 
@@ -37,6 +47,14 @@ fn inv() {
         BaseElement::ONE,
         x * y
     );
+}
+
+#[test]
+fn from() {
+    assert_eq!(
+        BaseElement::from(100u64),
+        BaseElement::from([100,0,0,0])
+    )
 }
 
 #[test]
