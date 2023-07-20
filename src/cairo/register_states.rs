@@ -86,7 +86,7 @@ impl RegisterStates {
 #[cfg(test)]
 mod tests {
 
-    use crate::{cairo::decode::instruction_flags::*, FE, Felt252};
+    use crate::{cairo::decode::instruction_flags::*, Felt252};
 
     use super::*;
     use std::collections::HashMap;
