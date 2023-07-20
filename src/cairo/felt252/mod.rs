@@ -44,13 +44,12 @@ impl Fr {
 
     pub fn from_le_bytes(bytes: &[u8; 32]) -> Self {
         let needed_bytes = bytes
-        .get(0..32 * 8).unwrap();
+        .get(0..4 * 8).unwrap();
 
         let mut limbs: [u64; 4] = [0; 4];
 
         needed_bytes
         .chunks_exact(8)
-        .rev()
         .enumerate()
         .try_for_each(|(i, chunk)| {
             let limb = u64::from_le_bytes(
