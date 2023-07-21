@@ -18,6 +18,9 @@ use winter_utils::{
     DeserializationError, Randomizable, Serializable,
 };
 
+pub mod felt252_fibo;
+
+use rand::prelude::*;
 
 use ff::{Field, PrimeField, derive::bitvec::macros::internal::funty::Numeric};
 
@@ -26,6 +29,40 @@ use super::runner::run::Error;
 #[cfg(test)]
 mod tests;
 
+
+ /// Returns a vector of random value of the specified type and the specified length.
+///
+/// # Panics
+/// Panics if:
+/// * A valid value requires at over 32 bytes.
+/// * A valid value could not be generated after 1000 tries.
+pub fn rand_vector<R: Randomizable>(n: usize) -> Vec<R> {
+    let mut result = Vec::with_capacity(n);
+    let seed = rand::thread_rng().gen::<[u8; 32]>();
+    let mut g = StdRng::from_seed(seed);
+    for _ in 0..1000 * n {
+        let bytes = g.gen::<[u8; 32]>();
+        if let Some(element) = R::from_random_bytes(&bytes[..R::VALUE_SIZE]) {
+            result.push(element);
+            if result.len() == n {
+                return result;
+            }
+        }
+    }
+
+    panic!("failed to generate enough random field elements");
+}
+
+pub fn rand_value<R: Randomizable>() -> R {
+    for _ in 0..1000 {
+        let bytes = rand::thread_rng().gen::<[u8; 32]>();
+        if let Some(value) = R::from_random_bytes(&bytes[..R::VALUE_SIZE]) {
+            return value;
+        }
+    }
+
+    panic!("failed generate a random field element");
+}
 
 // FIELD ELEMENT
 // ================================================================================================
@@ -328,6 +365,9 @@ impl FieldElement for BaseElement {
         elements
     }
 
+    // SERIALIZATION / DESERIALIZATION
+    // --------------------------------------------------------------------------------------------
+
     fn elements_as_bytes(elements: &[Self]) -> &[u8] {
         let p = elements.as_ptr();
         let len = elements.len() * Self::ELEMENT_BYTES;
@@ -379,6 +419,7 @@ impl BaseElement{
     pub fn to_bytes_be(&self) -> Vec<u8>{
         self.0.to_be_bytes()
     }
+
 }
 
 impl StarkField for BaseElement {
@@ -652,10 +693,15 @@ impl<'a> TryFrom<&'a [u8]> for BaseElement {
 // TODO: Why is this method not working? See commented lines in core/src/word/helpers.rs
 impl AsBytes for BaseElement {
     fn as_bytes(&self) -> &[u8] {
-        //let ptr: *const Vec<u8> = &self.as_int().to_le_bytes();
-        //unsafe { slice::from_raw_parts(ptr as *const u8, ELEMENT_BYTES) }
+        // let ptr: *const Vec<u8> = &self.as_int().to_le_bytes();
+        // unsafe { slice::from_raw_parts(ptr as *const u8, ELEMENT_BYTES) }
         let ptr: *const BigInt = &self.to_raw();
-        unsafe { slice::from_raw_parts(ptr as *const u8, ELEMENT_BYTES) }
+        let result: &[u8];
+        unsafe {  
+            result = slice::from_raw_parts(ptr as *const u8, ELEMENT_BYTES);
+            println!("IN UNSAFE BLOCK========== RESULT {:?}", result);
+            result
+        }
     }
 }
 
@@ -670,14 +716,15 @@ impl Serializable for BaseElement {
 
 impl Deserializable for BaseElement {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let bytes: [u8; 32] = source.read_array()?;
+        // let bytes: [u8; 32] = source.read_array()?;
+        let bytes: [u8; 32] = source.read_array::<32>()?;
         let value: [u64; 4] = bytes
             .array_chunks::<8>()
             .map(|c| u64::from_le_bytes(*c))
             .collect::<Vec<u64>>()
             .try_into()
             .unwrap();
-        Ok(BaseElement(Fr(value)))
+        Ok(BaseElement::from(value))
+        // Ok(BaseElement(Fr(value)))
     }
 }
-
