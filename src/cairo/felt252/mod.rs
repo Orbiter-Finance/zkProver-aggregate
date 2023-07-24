@@ -68,10 +68,12 @@ pub fn rand_value<R: Randomizable>() -> R {
 // ================================================================================================
 
 // Note that the internal representation of Fr is assumed to be in Montgomery form with R=2^256
+
 #[derive(PrimeField)]
 #[PrimeFieldModulus = "3618502788666131213697322783095070105623107215331596699973092056135872020481"]
 #[PrimeFieldGenerator = "3"]
 #[PrimeFieldReprEndianness = "little"]
+#[derive(Hash)]
 struct Fr([u64; 4]);
 
 impl Fr {
@@ -323,7 +325,7 @@ impl Display for BigInt {
 
 
 // Represents a base field element, using Fr as the backing type.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default,Hash)]
 pub struct BaseElement(Fr);
 
 
