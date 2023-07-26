@@ -1,4 +1,32 @@
+use std::{ops::Range, iter};
 
+use num_integer::{div_ceil};
+use winterfell::{math::{FieldElement, StarkField}};
+
+use crate::Felt252;
+
+use super::{
+    register_states::RegisterStates, 
+    cairo_mem::CairoMemory, 
+    air::{PublicInputs, MemorySegment, constraints::{OFF_DST, OFF_OP1, FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR, OFF_OP0, FRAME_INST, FRAME_DST, FRAME_OP0, FRAME_OP1}}, 
+    decode::{
+        instruction_flags::{CairoInstructionFlags, DstReg, Op0Reg, Op1Src, aux_get_last_nim_of_field_element, PcUpdate, ResLogic, CairoOpcode, ApUpdate}, instruction_offsets::InstructionOffsets
+    }, 
+    felt252::BigInt, cairo_trace::CairoTraceTable
+};
+
+pub const MEMORY_COLUMNS: [usize; 8] = [
+    FRAME_PC,
+    FRAME_DST_ADDR,
+    FRAME_OP0_ADDR,
+    FRAME_OP1_ADDR,
+    FRAME_INST,
+    FRAME_DST,
+    FRAME_OP0,
+    FRAME_OP1,
+];
+
+pub const ADDR_COLUMNS: [usize; 4] = [FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR];
 
 // MAIN TRACE LAYOUT
 // -----------------------------------------------------------------------------------------
@@ -13,15 +41,6 @@
 //  A                B C  D    E    F   G
 // ├xxxxxxxxxxxxxxxx|x|xx|xxxx|xxxx|xxx|xxx┤
 //
-
-use std::ops::Range;
-
-use winterfell::{TraceTable, math::FieldElement};
-
-use crate::Felt252;
-
-use super::{register_states::RegisterStates, cairo_mem::CairoMemory, air::{PublicInputs, MemorySegment}, decode::{instruction_flags::{CairoInstructionFlags, DstReg, Op0Reg, Op1Src, aux_get_last_nim_of_field_element, PcUpdate, ResLogic, CairoOpcode, ApUpdate}, instruction_offsets::InstructionOffsets}, felt252::BigInt};
-
 /// Builds the Cairo main trace (i.e. the trace without the auxiliary columns).
 /// Builds the execution trace, fills the offset range-check holes and memory holes, adds
 /// public memory dummy accesses (See section 9.8 of the Cairo whitepaper) and pads the result
@@ -30,9 +49,199 @@ pub fn build_main_trace(
     register_states: &RegisterStates,
     memory: &CairoMemory,
     public_input: &mut PublicInputs,
-) -> TraceTable<Felt252> {
-    let mut trace = TraceTable::new(8, 8);
-    trace
+) -> CairoTraceTable<Felt252> {
+    // let mut trace = TraceTable::new(8, 8);
+    // trace
+    let mut main_trace = build_cairo_execution_trace(register_states, memory, public_input);
+    let mut address_cols = main_trace
+        .get_cols(&[FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR])
+        .table;
+
+    address_cols.sort_by_key(|x| x.to_string());
+    let (rc_holes, rc_min, rc_max) = get_rc_holes(&main_trace, &[OFF_DST, OFF_OP0, OFF_OP1]);
+    public_input.range_check_min = Some(rc_min);
+    public_input.range_check_max = Some(rc_max);
+    fill_rc_holes(&mut main_trace, rc_holes);
+
+    let mut memory_holes = get_memory_holes(&address_cols, public_input.public_memory.len());
+
+    if !memory_holes.is_empty() {
+        fill_memory_holes(&mut main_trace, &mut memory_holes);
+    }
+
+    add_pub_memory_dummy_accesses(&mut main_trace, public_input.public_memory.len());
+
+    let trace_len_next_power_of_two = main_trace.n_rows().next_power_of_two();
+    let padding = trace_len_next_power_of_two - main_trace.n_rows();
+    pad_with_last_row(&mut main_trace, padding);
+
+    main_trace
+}
+
+fn pad_with_last_row(trace: &mut CairoTraceTable<Felt252>, number_rows: usize) {
+    let last_row = trace.last_row().to_vec();
+    let mut pad: Vec<_> = std::iter::repeat(&last_row)
+        .take(number_rows)
+        .flatten()
+        .cloned()
+        .collect();
+    trace.table.append(&mut pad);
+}
+
+/// Artificial `(0, 0)` dummy memory accesses must be added for the public memory.
+/// See section 9.8 of the Cairo whitepaper.
+fn add_pub_memory_dummy_accesses(
+    main_trace: &mut CairoTraceTable<Felt252>,
+    pub_memory_len: usize,
+) {
+    pad_with_last_row_and_zeros(main_trace, (pub_memory_len >> 2) + 1, &MEMORY_COLUMNS)
+}
+
+/// Pads trace with its last row, with the exception of the columns specified in
+/// `zero_pad_columns`, where the pad is done with zeros.
+/// If the last row is [2, 1, 4, 1] and the zero pad columns are [0, 1], then the
+/// padding will be [0, 0, 4, 1].
+fn pad_with_last_row_and_zeros(
+    trace: &mut CairoTraceTable<Felt252>,
+    number_rows: usize,
+    zero_pad_columns: &[usize],
+) {
+    let mut last_row = trace.last_row().to_vec();
+    for exemption_column in zero_pad_columns.iter() {
+        last_row[*exemption_column] = Felt252::ZERO;
+    }
+    let mut pad: Vec<_> = std::iter::repeat(&last_row)
+        .take(number_rows)
+        .flatten()
+        .cloned()
+        .collect();
+    trace.table.append(&mut pad);
+}
+
+/// Fill memory holes in each address column of the trace with the missing address, depending on the
+/// trace column. If the trace column refers to memory addresses, it will be filled with the missing
+/// addresses.
+fn fill_memory_holes(trace: &mut CairoTraceTable<Felt252>, memory_holes: &mut [Felt252]) {
+    let last_row = trace.last_row().to_vec();
+
+    // This number represents the amount of times we have to pad to fill the memory
+    // holes into the trace.
+    // There are a total of ADDR_COLUMNS.len() address columns, and we have to append
+    // hole addresses in each column until there are no more holes.
+    // If we have that memory_holes = [1, 2, 3, 4, 5] and there are 4 address columns,
+    // we will have to pad with 2 rows, one for the first [1, 2, 3, 4] and one for the
+    // 5 value.
+    let padding_size = div_ceil(memory_holes.len(), ADDR_COLUMNS.len());
+
+    let padding_row_iter = iter::repeat(last_row).take(padding_size);
+    let addr_columns_iter = iter::repeat(ADDR_COLUMNS).take(padding_size);
+    let mut memory_holes_iter = memory_holes.iter();
+
+    for (addr_cols, mut padding_row) in iter::zip(addr_columns_iter, padding_row_iter) {
+        // The particular placement of the holes in each column is not important,
+        // the only thing that matters is that the addresses are put somewhere in the address
+        // columns.
+        addr_cols.iter().for_each(|a_col| {
+            if let Some(hole) = memory_holes_iter.next() {
+                padding_row[*a_col] = *hole;
+            }
+        });
+
+        trace.table.append(&mut padding_row);
+    }
+}
+
+/// Get memory holes from accessed addresses. These memory holes appear
+/// as a consequence of interaction with builtins.
+/// Returns a vector of addresses that were not present in the input vector (holes)
+///
+/// # Arguments
+///
+/// * `sorted_addrs` - Vector of sorted memory addresses.
+/// * `codelen` - the length of the Cairo program instructions.
+fn get_memory_holes(sorted_addrs: &[Felt252], codelen: usize) -> Vec<Felt252> {
+    let mut memory_holes = Vec::new();
+    let mut prev_addr = &sorted_addrs[0];
+    let ONE = Felt252::ONE;
+
+    for addr in sorted_addrs.iter() {
+        let addr_diff = *addr - *prev_addr;
+
+        // If the candidate memory hole has an address belonging to the program segment (public
+        // memory), that is not accounted here since public memory is added in a posterior step of
+        // the protocol.
+        if addr_diff != Felt252::ONE
+            && addr_diff != Felt252::ZERO
+            && addr.as_int() > (codelen as u64).into()
+        {
+            let mut hole_addr = *prev_addr + ONE;
+
+            while hole_addr.as_int() < addr.as_int() {
+                if hole_addr.as_int() > (codelen as u64).into() {
+                    memory_holes.push(hole_addr);
+                }
+                hole_addr += Felt252::ONE;
+            }
+        }
+        prev_addr = addr;
+    }
+
+    memory_holes
+}
+
+/// Fills holes found in the range-checked columns.
+fn fill_rc_holes(trace: &mut CairoTraceTable<Felt252>, holes: Vec<Felt252>) {
+    let zeros_left = vec![Felt252::ZERO; OFF_DST];
+    let zeros_right = vec![Felt252::ZERO; trace.n_cols - OFF_OP1 - 1];
+
+    for i in (0..holes.len()).step_by(3) {
+        trace.table.append(&mut zeros_left.clone());
+        trace.table.append(&mut holes[i..(i + 3)].to_vec());
+        trace.table.append(&mut zeros_right.clone());
+    }
+}
+
+/// Gets holes from the range-checked columns. These holes must be filled for the
+/// permutation range-checks, as can be read in section 9.9 of the Cairo whitepaper.
+/// Receives the trace and the indexes of the range-checked columns.
+/// Outputs the holes that must be filled to make the range continuous and the extreme
+/// values rc_min and rc_max, corresponding to the minimum and maximum values of the range.
+/// NOTE: These extreme values should be received as public inputs in the future and not
+/// calculated here.
+fn get_rc_holes(
+    trace: &CairoTraceTable<Felt252>,
+    columns_indices: &[usize],
+) -> (Vec<Felt252>, u16, u16)
+{
+    let offset_columns = trace.get_cols(columns_indices).table;
+
+    let mut sorted_offset_representatives: Vec<u16> = offset_columns
+        .iter()
+        .map(|x| x.as_int().to_u16())
+        .collect();
+    sorted_offset_representatives.sort();
+
+    let mut all_missing_values: Vec<Felt252> = Vec::new();
+
+    for window in sorted_offset_representatives.windows(2) {
+        if window[1] != window[0] {
+            let mut missing_range: Vec<_> = ((window[0] + 1)..window[1])
+                .map(|x| Felt252::from(x as u64))
+                .collect();
+            all_missing_values.append(&mut missing_range);
+        }
+    }
+
+    let multiple_of_three_padding =
+        ((all_missing_values.len() + 2) / 3) * 3 - all_missing_values.len();
+    let padding_element = Felt252::from(*sorted_offset_representatives.last().unwrap() as u64);
+    all_missing_values.append(&mut vec![padding_element; multiple_of_three_padding]);
+
+    (
+        all_missing_values,
+        sorted_offset_representatives[0],
+        sorted_offset_representatives.last().cloned().unwrap(),
+    )
 }
 
 /// Receives the raw Cairo trace and memory as outputted from the Cairo VM and returns
@@ -43,7 +252,8 @@ pub fn build_cairo_execution_trace(
     raw_trace: &RegisterStates,
     memory: &CairoMemory,
     public_inputs: &PublicInputs,
-) -> TraceTable<Felt252>{
+// ) -> Vec<Vec<Felt252>>{
+) -> CairoTraceTable<Felt252> {
 
     let n_steps = raw_trace.steps();
 
@@ -136,13 +346,25 @@ pub fn build_cairo_execution_trace(
 
     let trace_length = trace_cols[0].len();
     println!("trace_length {:?}", trace_length);
-    resize_to_pow2(&mut trace_cols);
-    println!("trace_length after resize {:?}", trace_cols[0].len());
- 
-    //  TraceTable::new_from_cols(&trace_cols)
-    TraceTable::init(trace_cols)
+    // resize_to_pow2(&mut trace_cols);
+    CairoTraceTable::<Felt252>::new_from_cols(&trace_cols)
+
 
 }
+
+// pub fn fill_rc_holes(
+//     trace: &mut Vec<Vec<Felt252>>,
+//     holes: Vec<Vec<Felt252>>,
+// ) {
+//     let zeros_left = vec![Felt252::ZERO; OFF_DST];
+//     let zeros_right = vec![Felt252::ZERO; trace.len() - OFF_OP1 - 1];
+
+//     for i in (0..holes.len()).step_by(3) {
+//         trace.append(&mut zeros_left.clone());
+//         trace.append(&mut holes[i..(i + 3)].to_vec());
+//         trace.append(&mut zeros_right.clone());
+//     }
+// }
 
 fn resize_to_pow2<E: FieldElement>(trace_columns: &mut [Vec<E>]) {
     let trace_len_pow2 = trace_columns
@@ -429,7 +651,9 @@ fn update_values(
 
 #[cfg(test)]
 mod test {
-    use crate::{cairo::{execution_trace::decompose_rc_values_into_trace_columns, cairo_layout::CairoLayout, runner::run::run_program, air::{PublicInputs, MemorySegmentMap}}, Felt252};
+    use winterfell::math::FieldElement;
+
+    use crate::{cairo::{execution_trace::{decompose_rc_values_into_trace_columns, get_rc_holes, fill_rc_holes, get_memory_holes, fill_memory_holes}, cairo_layout::CairoLayout, runner::run::run_program, air::{PublicInputs, MemorySegmentMap, constraints::{OFF_DST, OFF_OP1, FRAME_SELECTOR, FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR}}, cairo_trace::CairoTraceTable}, Felt252};
 
     use super::build_cairo_execution_trace;
 
@@ -477,5 +701,138 @@ mod test {
         );
         let execution_trace = build_cairo_execution_trace(&register_states, &memory, &pub_inputs);
 
+    }
+
+    #[test]
+    fn test_get_memory_holes_no_codelen() {
+        // We construct a sorted addresses list [1, 2, 3, 6, 7, 8, 9, 13, 14, 15], and
+        // set codelen = 0. With this value of codelen, any holes present between
+        // the min and max addresses should be returned by the function.
+        let mut addrs: Vec<Felt252> = (1..4).map(Felt252::from).collect();
+        let addrs_extension: Vec<Felt252> = (6..10).map(Felt252::from).collect();
+        addrs.extend_from_slice(&addrs_extension);
+        let addrs_extension: Vec<Felt252> = (13..16).map(Felt252::from).collect();
+        addrs.extend_from_slice(&addrs_extension);
+        let codelen = 0;
+
+        let expected_memory_holes = vec![
+            Felt252::from(4),
+            Felt252::from(5),
+            Felt252::from(10),
+            Felt252::from(11),
+            Felt252::from(12),
+        ];
+        let calculated_memory_holes = get_memory_holes(&addrs, codelen);
+
+        assert_eq!(expected_memory_holes, calculated_memory_holes);
+    }
+
+    #[test]
+    fn test_get_memory_holes_inside_program_section() {
+        // We construct a sorted addresses list [1, 2, 3, 8, 9] and we
+        // set a codelen of 9. Since all the holes will be inside the
+        // program segment (meaning from addresses 1 to 9), the function
+        // should not return any of them.
+        let mut addrs: Vec<Felt252> = (1..4).map(Felt252::from).collect();
+        let addrs_extension: Vec<Felt252> = (8..10).map(Felt252::from).collect();
+        addrs.extend_from_slice(&addrs_extension);
+        let codelen = 9;
+
+        let calculated_memory_holes = get_memory_holes(&addrs, codelen);
+        let expected_memory_holes: Vec<Felt252> = Vec::new();
+
+        assert_eq!(expected_memory_holes, calculated_memory_holes);
+    }
+
+    #[test]
+    fn test_fill_range_check_values() {
+        let columns = vec![
+            vec![Felt252::from(1); 3],
+            vec![Felt252::from(4); 3],
+            vec![Felt252::from(7); 3],
+        ];
+        let expected_col = vec![
+            Felt252::from(2),
+            Felt252::from(3),
+            Felt252::from(5),
+            Felt252::from(6),
+            Felt252::from(7),
+            Felt252::from(7),
+        ];
+        let table = CairoTraceTable::<Felt252>::new_from_cols(&columns);
+
+        let (col, rc_min, rc_max) = get_rc_holes(&table, &[0, 1, 2]);
+        assert_eq!(col, expected_col);
+        assert_eq!(rc_min, 1);
+        assert_eq!(rc_max, 7);
+    }
+
+    #[test]
+    fn test_add_missing_values_to_offsets_column() {
+        let mut main_trace = CairoTraceTable::<Felt252> {
+            table: (0..34 * 2).map(Felt252::from).collect(),
+            n_cols: 34,
+        };
+        let missing_values = vec![
+            Felt252::from(1),
+            Felt252::from(2),
+            Felt252::from(3),
+            Felt252::from(4),
+            Felt252::from(5),
+            Felt252::from(6),
+        ];
+        fill_rc_holes(&mut main_trace, missing_values);
+
+        let mut expected: Vec<_> = (0..34 * 2).map(Felt252::from).collect();
+        expected.append(&mut vec![Felt252::ZERO; OFF_DST]);
+        expected.append(&mut vec![
+            Felt252::from(1),
+            Felt252::from(2),
+            Felt252::from(3),
+        ]);
+        expected.append(&mut vec![Felt252::ZERO; 34 - OFF_OP1 - 1]);
+        expected.append(&mut vec![Felt252::ZERO; OFF_DST]);
+        expected.append(&mut vec![
+            Felt252::from(4),
+            Felt252::from(5),
+            Felt252::from(6),
+        ]);
+        expected.append(&mut vec![Felt252::ZERO; 34 - OFF_OP1 - 1]);
+        assert_eq!(main_trace.table, expected);
+        assert_eq!(main_trace.n_cols, 34);
+        assert_eq!(main_trace.table.len(), 34 * 4);
+    }
+
+    #[test]
+    fn test_fill_memory_holes() {
+        const TRACE_COL_LEN: usize = 2;
+        const NUM_TRACE_COLS: usize = FRAME_SELECTOR + 1;
+
+        let mut trace_cols = vec![vec![Felt252::ONE; TRACE_COL_LEN]; NUM_TRACE_COLS];
+        trace_cols[FRAME_PC][0] = Felt252::ONE;
+        trace_cols[FRAME_DST_ADDR][0] = Felt252::from(2);
+        trace_cols[FRAME_OP0_ADDR][0] = Felt252::from(3);
+        trace_cols[FRAME_OP1_ADDR][0] = Felt252::from(5);
+        trace_cols[FRAME_PC][1] = Felt252::from(6);
+        trace_cols[FRAME_DST_ADDR][1] = Felt252::from(9);
+        trace_cols[FRAME_OP0_ADDR][1] = Felt252::from(10);
+        trace_cols[FRAME_OP1_ADDR][1] = Felt252::from(11);
+        let mut trace = CairoTraceTable::new_from_cols(&trace_cols);
+
+        let mut memory_holes = vec![Felt252::from(4), Felt252::from(7), Felt252::from(8)];
+        fill_memory_holes(&mut trace, &mut memory_holes);
+
+        let frame_pc = &trace.cols()[FRAME_PC];
+        let dst_addr = &trace.cols()[FRAME_DST_ADDR];
+        let op0_addr = &trace.cols()[FRAME_OP0_ADDR];
+        let op1_addr = &trace.cols()[FRAME_OP1_ADDR];
+        assert_eq!(frame_pc[0], Felt252::ONE);
+        assert_eq!(dst_addr[0], Felt252::from(2));
+        assert_eq!(op0_addr[0], Felt252::from(3));
+        assert_eq!(op1_addr[0], Felt252::from(5));
+        assert_eq!(frame_pc[1], Felt252::from(6));
+        assert_eq!(dst_addr[1], Felt252::from(9));
+        assert_eq!(op0_addr[1], Felt252::from(10));
+        assert_eq!(op1_addr[1], Felt252::from(11));
     }
 }

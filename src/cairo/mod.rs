@@ -8,3 +8,4 @@ pub mod errors;
 pub mod air;
 pub mod execution_trace;
 pub mod felt252;
+pub mod cairo_trace;

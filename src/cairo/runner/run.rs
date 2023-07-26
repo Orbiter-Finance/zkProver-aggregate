@@ -3,6 +3,7 @@ use crate::Felt252;
 use crate::cairo::air::{PublicInputs, MemorySegmentMap, MemorySegment};
 use crate::cairo::cairo_layout::CairoLayout;
 use crate::cairo::cairo_mem::CairoMemory;
+use crate::cairo::cairo_trace::CairoTraceTable;
 use crate::cairo::execution_trace::build_main_trace;
 use crate::cairo::register_states::RegisterStates;
 use cairo_lang_starknet::casm_contract_class::CasmContractClass;
@@ -221,8 +222,9 @@ pub fn generate_prover_args(
         PublicInputs::from_regs_and_mem(&register_states, &memory, program_size, &memory_segments);
     
     let main_trace = build_main_trace(&register_states, &memory, &mut pub_inputs);
+    let winter_main_trace = TraceTable::init(main_trace.cols());
 
-    Ok((main_trace, pub_inputs))
+    Ok((winter_main_trace, pub_inputs))
 
 }
 

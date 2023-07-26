@@ -316,6 +316,13 @@ impl From<u16> for BigInt {
     }
 }
 
+impl<'a> From<&'a u16> for BigInt {
+    /// Converts a reference to a 16-bit value into a field element.
+    fn from(value: &'a u16) -> Self {
+        BigInt([*value as u64, 0, 0, 0])
+    }
+}
+
 impl From<u8> for BigInt {
     /// Converts an 8-bit value into a field element.
     fn from(value: u8) -> Self {
@@ -330,6 +337,8 @@ impl TryInto<u64> for BigInt {
     }
 }
 
+
+
 impl TryInto<u16> for BigInt {
     type Error = ();
     fn try_into(self) -> Result<u16, Self::Error> {
@@ -337,7 +346,18 @@ impl TryInto<u16> for BigInt {
     }
 }
 
+impl<'a> TryInto<u16> for &'a BigInt {
+    type Error = ();
+    fn try_into(self) -> Result<u16, Self::Error> {
+        Ok(self.0[0] as u16)
+    }
+}
+
 impl BigInt {
+
+    pub fn to_u16(&self) -> u16 {
+        self.0[0] as u16
+    }
     pub fn to_le_bytes(&self) -> Vec<u8> {
         let mut result = [0u8; 32];
         write_le_bytes(self.0, &mut result);
