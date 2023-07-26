@@ -4,9 +4,12 @@ use winter_utils::{AsBytes, SliceReader, Deserializable};
 use winterfell::math::{StarkField, FieldElement};
 use crate::cairo::felt252::{BaseElement, rand_value, rand_vector, BigInt, ELEMENT_BYTES};
 
+use super::Fr;
+
 
 #[test]
 fn add() {
+
 
     let r: BaseElement = rand_value();
     assert_eq!(r, r + BaseElement::ZERO);
@@ -219,6 +222,14 @@ fn element_as_int() {
 
 #[test]
 fn to_string() {
-     let e = BaseElement::from(1);
-     print!("TO String {}", e.to_string());
+     let e = BaseElement::from(255);
+     println!("TO String {}", e.to_string());
+}
+
+#[test]
+fn from_hex_string() {
+    let from_raw = BaseElement::from_raw([255,0,0,0]);
+    println!("from_raw {:?}", from_raw.to_string());
+    let from_hex = BaseElement::from_hex("ff");
+    println!("from_hex {:?}", from_hex.to_string());
 }

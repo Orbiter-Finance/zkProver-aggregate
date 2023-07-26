@@ -1,6 +1,3 @@
-
-use lambdaworks_math::field::{element::FieldElement, traits::IsField};
-
 use crate::Felt252;
 
 use super::instruction_flags::aux_get_last_nim_of_field_element;
@@ -36,7 +33,7 @@ impl InstructionOffsets {
         i32::from(i16::from_le_bytes(aux))
     }
 
-    pub fn to_trace_representation<F: IsField>(&self) -> [FieldElement<F>; 3] {
+    pub fn to_trace_representation(&self) -> [Felt252; 3] {
         [
             to_unbiased_representation(self.off_dst),
             to_unbiased_representation(self.off_op0),
@@ -48,12 +45,12 @@ impl InstructionOffsets {
 /// Returns an unbiased representation of the number. This is applied to
 /// instruction offsets as explained in section 9.4 of the Cairo whitepaper
 /// to be in the range [0, 2^16). https://eprint.iacr.org/2021/1063.pdf
-fn to_unbiased_representation<F: IsField>(n: i32) -> FieldElement<F> {
+fn to_unbiased_representation(n: i32) -> Felt252 {
     let b15 = 2u64.pow(15u32);
     if n < 0 {
-        FieldElement::<F>::from(b15 - n.unsigned_abs() as u64)
+        Felt252::from(b15 - n.unsigned_abs() as u64)
     } else {
-        FieldElement::<F>::from(n as u64 + b15)
+        Felt252::from(n as u64 + b15)
     }
 }
 

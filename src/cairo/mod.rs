@@ -1,4 +1,5 @@
 pub mod runner;
+pub mod prover;
 pub mod cairo_layout;
 pub mod register_states;
 pub mod cairo_mem;

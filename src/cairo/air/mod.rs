@@ -1,10 +1,12 @@
 use std::{collections::HashMap, ops::Range};
 
-use winterfell::{AirContext, Air, math::ToElements, TraceInfo, ProofOptions};
+use winterfell::{AirContext, Air, math::{ToElements, FieldElement}, TraceInfo, ProofOptions, EvaluationFrame};
 
 use crate::cairo::felt252::BaseElement as Felt252;
 
 use super::{register_states::RegisterStates, cairo_mem::CairoMemory};
+
+pub mod constraints;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemorySegment {
@@ -111,13 +113,13 @@ impl Air for CairoAIR {
         todo!()
     }
 
-    fn context(&self) -> &AirContext<Self::BaseField> {
-        todo!()
+    fn context(&self) -> &AirContext<Felt252> {
+        &self.context
     }
 
-    fn evaluate_transition<E: winterfell::math::FieldElement<BaseField = Self::BaseField>>(
+    fn evaluate_transition<E: FieldElement<BaseField = Felt252>>(
         &self,
-        frame: &winterfell::EvaluationFrame<E>,
+        frame: &EvaluationFrame<E>,
         periodic_values: &[E],
         result: &mut [E],
     ) {

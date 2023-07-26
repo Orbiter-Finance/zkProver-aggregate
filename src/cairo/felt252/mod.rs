@@ -81,6 +81,37 @@ impl Fr {
         Fr(value).mul(&R2)
     }
 
+    pub fn from_hex(value: &str) -> Self {
+        const NUM_LIMBS: usize = 4;
+        let mut result = [0u64; NUM_LIMBS];
+        let mut limb = 0;
+        let mut limb_index = NUM_LIMBS - 1;
+        let mut shift = 0;
+        let value = value.as_bytes();
+        let mut i = value.len();
+        while i > 0 {
+            i -= 1;
+            limb |= match value[i] {
+                c @ b'0'..=b'9' => (c as u64 - '0' as u64) << shift,
+                c @ b'a'..=b'f' => (c as u64 - 'a' as u64 + 10) << shift,
+                c @ b'A'..=b'F' => (c as u64 - 'A' as u64 + 10) << shift,
+                _ => {
+                    panic!("Malformed hex expression.")
+                }
+            };
+            shift += 4;
+            if shift == 64 && limb_index > 0 {
+                result[limb_index] = limb;
+                limb = 0;
+                limb_index -= 1;
+                shift = 0;
+            }
+        }
+        result[limb_index] = limb;
+        result.reverse();
+        Fr(result).mul(&R2)
+    }
+
     pub fn from_le_bytes(bytes: &[u8; 32]) -> Self {
         let needed_bytes = bytes
         .get(0..4 * 8).unwrap();
@@ -312,6 +343,37 @@ impl BigInt {
         write_le_bytes(self.0, &mut result);
         result.to_vec()
     }
+
+    pub fn from_hex(value: &str) -> Self {
+        const NUM_LIMBS: usize = 4;
+        let mut result = [0u64; NUM_LIMBS];
+        let mut limb = 0;
+        let mut limb_index = NUM_LIMBS - 1;
+        let mut shift = 0;
+        let value = value.as_bytes();
+        let mut i = value.len();
+        while i > 0 {
+            i -= 1;
+            limb |= match value[i] {
+                c @ b'0'..=b'9' => (c as u64 - '0' as u64) << shift,
+                c @ b'a'..=b'f' => (c as u64 - 'a' as u64 + 10) << shift,
+                c @ b'A'..=b'F' => (c as u64 - 'A' as u64 + 10) << shift,
+                _ => {
+                    panic!("Malformed hex expression.")
+                }
+            };
+            shift += 4;
+            if shift == 64 && limb_index > 0 {
+                result[limb_index] = limb;
+                limb = 0;
+                limb_index -= 1;
+                shift = 0;
+            }
+        }
+        result[limb_index] = limb;
+
+        BigInt([result[3], result[2], result[1], result[0]])
+    }
 }
 
 impl Display for BigInt {
@@ -406,6 +468,10 @@ impl BaseElement{
         BaseElement(Fr::from_raw(value))
     }
 
+    pub fn from_hex(value: &str) -> Self {
+        BaseElement(Fr::from_hex(value))
+    }
+
     pub fn to_raw(&self) -> BigInt {
         self.0.to_raw()
     }
@@ -481,6 +547,7 @@ impl Add for BaseElement {
         Self(self.0 + rhs.0)
     }
 }
+
 
 impl AddAssign for BaseElement {
     fn add_assign(&mut self, rhs: Self) {

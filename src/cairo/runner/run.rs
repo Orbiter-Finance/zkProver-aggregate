@@ -1,6 +1,9 @@
 use super::vec_writer::VecWriter;
+use crate::Felt252;
+use crate::cairo::air::{PublicInputs, MemorySegmentMap, MemorySegment};
 use crate::cairo::cairo_layout::CairoLayout;
 use crate::cairo::cairo_mem::CairoMemory;
+use crate::cairo::execution_trace::build_main_trace;
 use crate::cairo::register_states::RegisterStates;
 use cairo_lang_starknet::casm_contract_class::CasmContractClass;
 use cairo_vm::cairo_run::{self, EncodeTraceError};
@@ -13,6 +16,7 @@ use cairo_vm::vm::errors::{
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use lambdaworks_math::field::fields::fft_friendly::stark_252_prime_field::Stark252PrimeField;
+use winterfell::TraceTable;
 use std::ops::Range;
 use thiserror::Error;
 
@@ -200,22 +204,56 @@ pub fn run_program(
     ))
 }
 
+
+
+pub fn generate_prover_args(
+    program_content: &[u8],
+    output_range: &Option<Range<u64>>,
+) -> Result<(TraceTable<Felt252>, PublicInputs), Error>{
+
+    let (register_states, memory, program_size, range_check_builtin_range) =
+        run_program(None, CairoLayout::Plain, program_content).unwrap();
+    
+    let memory_segments = create_memory_segment_map(range_check_builtin_range, output_range);
+
+
+    let mut pub_inputs =
+        PublicInputs::from_regs_and_mem(&register_states, &memory, program_size, &memory_segments);
+    
+    let main_trace = build_main_trace(&register_states, &memory, &mut pub_inputs);
+
+    Ok((main_trace, pub_inputs))
+
+}
+
+fn create_memory_segment_map(
+    range_check_builtin_range: Option<Range<u64>>,
+    output_range: &Option<Range<u64>>,
+) -> MemorySegmentMap {
+    let mut memory_segments = MemorySegmentMap::new();
+
+    if let Some(range_check_builtin_range) = range_check_builtin_range {
+        memory_segments.insert(MemorySegment::RangeCheck, range_check_builtin_range);
+    }
+    if let Some(output_range) = output_range {
+        memory_segments.insert(MemorySegment::Output, output_range.clone());
+    }
+
+    memory_segments
+}
+
 mod tests {
     use crate::cairo::register_states;
     use super::*;
     use super::run_program;
 
     #[test]
-    fn test_parse_cairo_file() {
+    fn test_prove_cairo_file() {
         let base_dir = env!("CARGO_MANIFEST_DIR");
         let json_filename = base_dir.to_owned() + "/cairo_programs/fibonacci_cairo1.casm";
         let program_content = std::fs::read(json_filename).unwrap();
 
-        let (register_states, memory, program_size, _rg_in_out) = run_program(
-            None, 
-            CairoLayout::Plain, 
-            &program_content
-        ).unwrap();
+        let (main_trace, pub_inputs) = generate_prover_args(&program_content, &None).unwrap();
 
 
     }
