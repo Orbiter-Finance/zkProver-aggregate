@@ -16,6 +16,7 @@ thiserror = "1.0.38"
 
 winterfell = { git = "https://github.com/facebook/winterfell.git", tag = "v0.6.4"}
 winter-utils = { package = "winter-utils", git = "https://github.com/facebook/winterfell.git",  tag = "v0.6.4", default-features = false }
+winter-air = { package = "winter-air", git = "https://github.com/facebook/winterfell.git",  tag = "v0.6.4", default-features = false }
 
 cairo-vm = { version = "0.6.0", features = ["cairo-1-hints"] }
 lambdaworks-math = { git = "https://github.com/lambdaclass/lambdaworks", rev = "a17b951" }

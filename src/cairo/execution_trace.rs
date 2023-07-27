@@ -352,19 +352,6 @@ pub fn build_cairo_execution_trace(
 
 }
 
-// pub fn fill_rc_holes(
-//     trace: &mut Vec<Vec<Felt252>>,
-//     holes: Vec<Vec<Felt252>>,
-// ) {
-//     let zeros_left = vec![Felt252::ZERO; OFF_DST];
-//     let zeros_right = vec![Felt252::ZERO; trace.len() - OFF_OP1 - 1];
-
-//     for i in (0..holes.len()).step_by(3) {
-//         trace.append(&mut zeros_left.clone());
-//         trace.append(&mut holes[i..(i + 3)].to_vec());
-//         trace.append(&mut zeros_right.clone());
-//     }
-// }
 
 fn resize_to_pow2<E: FieldElement>(trace_columns: &mut [Vec<E>]) {
     let trace_len_pow2 = trace_columns

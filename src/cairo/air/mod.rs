@@ -1,12 +1,15 @@
 use std::{collections::HashMap, ops::Range};
 
-use winterfell::{AirContext, Air, math::{ToElements, FieldElement}, TraceInfo, ProofOptions, EvaluationFrame};
+use winterfell::{AirContext, Air, math::{ToElements, FieldElement}, TraceInfo, ProofOptions, EvaluationFrame, TransitionConstraintDegree};
 
 use crate::cairo::felt252::BaseElement as Felt252;
+
+use self::constraints::{evaluate_instr_constraints, evaluate_operand_constraints, evaluate_register_constraints, enforce_selector};
 
 use super::{register_states::RegisterStates, cairo_mem::CairoMemory};
 
 pub mod constraints;
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemorySegment {
@@ -99,9 +102,9 @@ impl PublicInputs {
 #[derive(Clone)]
 pub struct CairoAIR {
     pub context: AirContext<Felt252>,
-    pub trace_length: usize,
+    // pub trace_length: usize,
     pub pub_inputs: PublicInputs,
-    has_rc_builtin: bool,
+    // has_rc_builtin: bool,
 }
 
 impl Air for CairoAIR {
@@ -109,21 +112,69 @@ impl Air for CairoAIR {
     type BaseField = Felt252;
     type PublicInputs = PublicInputs;
 
-    fn new(trace_info: TraceInfo, pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
+    fn new(trace_info: TraceInfo, pub_inputs: PublicInputs, options: ProofOptions) -> Self {
         todo!()
+        // debug_assert!(trace_info.length().is_power_of_two());
+        // let mut main_degrees = vec![];
+        
+        // // Instruction Constraints
+        // for _ in 0..=15 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2)); // F0-F14
+        // }
+        // main_degrees.push(TransitionConstraintDegree::new(1)); // F15
+
+        // // Other Constraints
+        // for _ in 0..=15 {
+        //     main_degrees.push(TransitionConstraintDegree::new(3));
+        // }
+
+        // // Increasing memory auxiliary constraints.
+        // for _ in 0..=4 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
+
+        // // Consistent memory auxiliary constraints.
+        // for _ in 0..=4 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
+
+        // // Permutation auxiliary constraints.
+        // for _ in 0..=4 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
+
+        // // range-check increasing constraints.
+        // for _ in 0..=3 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
+
+        // // range-check permutation argument constraints.
+        // for _ in 0..=3 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
+
+        // let mut num_transition_constraints = 49;
+
+        // Self {
+
+        // }
+
     }
 
     fn context(&self) -> &AirContext<Felt252> {
         &self.context
     }
 
-    fn evaluate_transition<E: FieldElement<BaseField = Felt252>>(
+    fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
         frame: &EvaluationFrame<E>,
         periodic_values: &[E],
         result: &mut [E],
     ) {
-        todo!()
+        // evaluate_instr_constraints(result, frame);
+        // evaluate_operand_constraints(result, frame);
+        // evaluate_register_constraints(result, frame);
+        // enforce_selector(result, frame);
     }
 
     fn get_assertions(&self) -> Vec<winterfell::Assertion<Self::BaseField>> {

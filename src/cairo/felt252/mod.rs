@@ -597,6 +597,14 @@ impl Mul for BaseElement {
     }
 }
 
+// impl Mul for &BaseElement {
+//     type Output = Self;
+
+//     fn mul(self, rhs: Self) -> Self {
+//         Self(self * &rhs)
+//     }
+// }
+
 impl MulAssign for BaseElement {
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs
