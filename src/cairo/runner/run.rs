@@ -245,6 +245,8 @@ fn create_memory_segment_map(
 }
 
 mod tests {
+    use crate::cairo::air::proof_options::CairoProofOptions;
+    use crate::cairo::prover::prove_cairo_trace;
     use crate::cairo::register_states;
     use super::*;
     use super::run_program;
@@ -255,7 +257,10 @@ mod tests {
         let json_filename = base_dir.to_owned() + "/cairo_programs/fibonacci_cairo1.casm";
         let program_content = std::fs::read(json_filename).unwrap();
 
+        let proof_options = CairoProofOptions::default().into_inner();
+
         let (main_trace, pub_inputs) = generate_prover_args(&program_content, &None).unwrap();
+        let (star_proof, pub_inputs_proof) = prove_cairo_trace(main_trace, pub_inputs, &proof_options).unwrap();
 
 
     }

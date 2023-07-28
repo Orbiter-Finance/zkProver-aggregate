@@ -1,9 +1,6 @@
-use std::thread::current;
-
-use winter_air::EvaluationFrame;
 use winterfell::math::FieldElement;
 
-use crate::Felt252;
+use crate::{BaseElement};
 
 
 /// Main constraint identifiers
@@ -134,19 +131,20 @@ pub const MEM_A_TRACE_OFFSET: usize = 19;
 const BUILTIN_OFFSET: usize = 9;
 
 
-fn frame_inst_size(frame_row: &[Felt252]) -> Felt252 {
-    frame_row[F_OP_1_VAL] + Felt252::ONE
+fn frame_inst_size<E: FieldElement + From<BaseElement>>(frame_row: &[E]) -> E {
+    frame_row[F_OP_1_VAL] + E::ONE
 }
 
 /// From the Cairo whitepaper, section 9.10
-pub fn evaluate_instr_constraints(
-    constraints: &mut[Felt252], frame: &EvaluationFrame<Felt252>
+pub fn evaluate_instr_constraints<E: FieldElement + From<BaseElement>>(
+    constraints: &mut[E],
+    current: &[E],
 ) {
-    let cur = frame.current();
-    let ONE = Felt252::ONE;
-
+    let ONE = E::ONE;
+    let ZERO = E::ZERO;
+    let TWO = ONE + ONE;
     // Bit constraints
-    for (i, flag) in cur[0..16].iter().enumerate() {
+    for (i, flag) in current[0..16].iter().enumerate() {
         constraints[i] = match i {
             0..=14 => *flag * (*flag - ONE),
             15 => *flag,
@@ -155,105 +153,168 @@ pub fn evaluate_instr_constraints(
     }
 
      // Instruction unpacking
-     let TWO = Felt252::from(2);
      let b16 = TWO.exp(16u32.into());
      let b32 = TWO.exp(32u32.into());
      let b48 = TWO.exp(48u32.into());
 
      // Named like this to match the Cairo whitepaper's notation.
-     let f0_squiggle = &cur[0..15]
+     let f0_squiggle = &current[0..15]
         .iter()
         .rev()
-        .fold(Felt252::ZERO, |acc, flag| *flag + TWO * acc);
+        .fold(ZERO, |acc, flag| *flag + TWO * acc.into());
 
-    constraints[INST] = cur[OFF_DST] + (b16 * cur[OFF_OP0]) + (b32 * cur[OFF_OP1]) + b48 * *f0_squiggle - cur[FRAME_INST];
-
+    constraints[INST] = current[OFF_DST] + (b16 * current[OFF_OP0]) + (b32 * current[OFF_OP1]) + b48 * *f0_squiggle - current[FRAME_INST];
 
 }
 
-pub fn evaluate_operand_constraints(constraints: &mut[Felt252], frame: &EvaluationFrame<Felt252>) {
-    let cur: &[crate::BaseElement] = frame.current();
+pub fn evaluate_operand_constraints<E: FieldElement + From<BaseElement>>(
+    constraints: &mut[E], 
+    current: &[E],
+) {
+    let ap = current[FRAME_AP];
+    let fp = current[FRAME_FP];
+    let pc = current[FRAME_PC];
 
-    let ap = cur[FRAME_AP];
-    let fp = cur[FRAME_FP];
-    let pc = cur[FRAME_PC];
-
-    let one = Felt252::ONE;
-    let b15 = Felt252::from(2).exp(15u32.into());
+    let ONE =E::ONE;
+    let TWO = ONE + ONE;
+    let b15 = TWO.exp(15u32.into());
 
     constraints[DST_ADDR] =
-        cur[F_DST_FP] * fp + (one - cur[F_DST_FP]) * ap + (cur[OFF_DST] - b15)
-            - cur[FRAME_DST_ADDR];
+        current[F_DST_FP] * fp + (ONE - current[F_DST_FP]) * ap + (current[OFF_DST] - b15)
+            - current[FRAME_DST_ADDR];
 
     constraints[OP0_ADDR] =
-        cur[F_OP_0_FP] * fp + (one - cur[F_OP_0_FP]) * ap + (cur[OFF_OP0] - b15)
-            - cur[FRAME_OP0_ADDR];
+        current[F_OP_0_FP] * fp + (ONE - current[F_OP_0_FP]) * ap + (current[OFF_OP0] - b15)
+            - current[FRAME_OP0_ADDR];
 
-    constraints[OP1_ADDR] = cur[F_OP_1_VAL] * pc
-        + cur[F_OP_1_AP] * ap
-        + cur[F_OP_1_FP] * fp
-        + (one - cur[F_OP_1_VAL] - cur[F_OP_1_AP] - cur[F_OP_1_FP]) * cur[FRAME_OP0]
-        + (cur[OFF_OP1] - b15)
-        - cur[FRAME_OP1_ADDR];
+    constraints[OP1_ADDR] = current[F_OP_1_VAL] * pc
+        + current[F_OP_1_AP] * ap
+        + current[F_OP_1_FP] * fp
+        + (ONE - current[F_OP_1_VAL] - current[F_OP_1_AP] - current[F_OP_1_FP]) * current[FRAME_OP0]
+        + (current[OFF_OP1] - b15)
+        - current[FRAME_OP1_ADDR];
 }
 
-pub fn evaluate_register_constraints(constraints: &mut[Felt252], frame: &EvaluationFrame<Felt252>) {
-    let cur = frame.current();
-    let next = frame.next();
+pub fn evaluate_register_constraints<E: FieldElement + From<BaseElement>>(
+    constraints: &mut[E], 
+    current: &[E],
+    next: &[E],
+) {
 
-    let one = Felt252::ONE;
-    let two = Felt252::TWO;
+    let ONE = E::ONE;
+    let TWO = ONE + ONE;
 
     // ap and fp constraints
-    constraints[NEXT_AP] = cur[FRAME_AP]
-        + cur[F_AP_ADD] * cur[FRAME_RES]
-        + cur[F_AP_ONE]
-        + cur[F_OPC_CALL] * two
+    constraints[NEXT_AP] = current[FRAME_AP]
+        + current[F_AP_ADD] * current[FRAME_RES]
+        + current[F_AP_ONE]
+        + current[F_OPC_CALL] * TWO
         - next[FRAME_AP];
 
-    constraints[NEXT_FP] = cur[F_OPC_RET] * cur[FRAME_DST]
-        + cur[F_OPC_CALL] * (cur[FRAME_AP] + two)
-        + (one - cur[F_OPC_RET] - cur[F_OPC_CALL]) * cur[FRAME_FP]
+    constraints[NEXT_FP] = current[F_OPC_RET] * current[FRAME_DST]
+        + current[F_OPC_CALL] * (current[FRAME_AP] + TWO)
+        + (ONE - current[F_OPC_RET] - current[F_OPC_CALL]) * current[FRAME_FP]
         - next[FRAME_FP];
 
     // pc constraints
-    constraints[NEXT_PC_1] = (cur[FRAME_T1] - cur[F_PC_JNZ])
-        * (next[FRAME_PC] - (cur[FRAME_PC] + frame_inst_size(cur)));
+    constraints[NEXT_PC_1] = (current[FRAME_T1] - current[F_PC_JNZ])
+        * (next[FRAME_PC] - (current[FRAME_PC] + frame_inst_size(current)));
 
-    constraints[NEXT_PC_2] = cur[FRAME_T0]
-        * (next[FRAME_PC] - (cur[FRAME_PC] + cur[FRAME_OP1]))
-        + (one - cur[F_PC_JNZ]) * next[FRAME_PC]
-        - ((one - cur[F_PC_ABS] - cur[F_PC_REL] - cur[F_PC_JNZ])
-            * (cur[FRAME_PC] + frame_inst_size(cur))
-            + cur[F_PC_ABS] * cur[FRAME_RES]
-            + cur[F_PC_REL] * (cur[FRAME_PC] + cur[FRAME_RES]));
+    constraints[NEXT_PC_2] = current[FRAME_T0]
+        * (next[FRAME_PC] - (current[FRAME_PC] + current[FRAME_OP1]))
+        + (ONE - current[F_PC_JNZ]) * next[FRAME_PC]
+        - ((ONE - current[F_PC_ABS] - current[F_PC_REL] - current[F_PC_JNZ])
+            * (current[FRAME_PC] + frame_inst_size(current))
+            + current[F_PC_ABS] * current[FRAME_RES]
+            + current[F_PC_REL] * (current[FRAME_PC] + current[FRAME_RES]));
 
-    constraints[T0] = cur[F_PC_JNZ] * cur[FRAME_DST] - cur[FRAME_T0];
-    constraints[T1] = cur[FRAME_T0] * cur[FRAME_RES] - cur[FRAME_T1];
+    constraints[T0] = current[F_PC_JNZ] * current[FRAME_DST] - current[FRAME_T0];
+    constraints[T1] = current[FRAME_T0] * current[FRAME_RES] - current[FRAME_T1];
 }
 
-pub fn evaluate_opcode_constraints(constraints: &mut[Felt252], frame: &EvaluationFrame<Felt252>) {
-    let cur = frame.current();
-    let one = Felt252::ONE;
+pub fn evaluate_opcode_constraints<E: FieldElement + From<BaseElement>>(
+    constraints: &mut[E], 
+    current: &[E],
+) {
+    let ONE = E::ONE;
 
-    constraints[MUL_1] = cur[FRAME_MUL] - (cur[FRAME_OP0] * cur[FRAME_OP1]);
+    constraints[MUL_1] = current[FRAME_MUL] - (current[FRAME_OP0] * current[FRAME_OP1]);
 
-    constraints[MUL_2] = cur[F_RES_ADD] * (cur[FRAME_OP0] + cur[FRAME_OP1])
-        + cur[F_RES_MUL] * cur[FRAME_MUL]
-        + (one - cur[F_RES_ADD] - cur[F_RES_MUL] - cur[F_PC_JNZ]) * cur[FRAME_OP1]
-        - (one - cur[F_PC_JNZ]) * cur[FRAME_RES];
+    constraints[MUL_2] = current[F_RES_ADD] * (current[FRAME_OP0] + current[FRAME_OP1])
+        + current[F_RES_MUL] * current[FRAME_MUL]
+        + (ONE - current[F_RES_ADD] - current[F_RES_MUL] - current[F_PC_JNZ]) * current[FRAME_OP1]
+        - (ONE - current[F_PC_JNZ]) * current[FRAME_RES];
 
-    constraints[CALL_1] = cur[F_OPC_CALL] * (cur[FRAME_DST] - cur[FRAME_FP]);
+    constraints[CALL_1] = current[F_OPC_CALL] * (current[FRAME_DST] - current[FRAME_FP]);
 
     constraints[CALL_2] =
-        cur[F_OPC_CALL] * (cur[FRAME_OP0] - (cur[FRAME_PC] + frame_inst_size(cur)));
+        current[F_OPC_CALL] * (current[FRAME_OP0] - (current[FRAME_PC] + frame_inst_size(current)));
 
-    constraints[ASSERT_EQ] = cur[F_OPC_AEQ] * (cur[FRAME_DST] - cur[FRAME_RES]);
+    constraints[ASSERT_EQ] = current[F_OPC_AEQ] * (current[FRAME_DST] - current[FRAME_RES]);
 }
 
-pub fn enforce_selector(constraints: &mut[Felt252], frame: &EvaluationFrame<Felt252>) {
-    let curr = frame.current();
+pub fn enforce_selector<E: FieldElement + From<BaseElement>>(
+    constraints: &mut[E], 
+    current: &[E],
+) {
     for result_cell in constraints.iter_mut().take(ASSERT_EQ + 1).skip(INST) {
-        *result_cell = *result_cell * curr[FRAME_SELECTOR];
+        *result_cell = *result_cell * current[FRAME_SELECTOR];
     }
+}
+
+pub fn memory_is_increasing<E: FieldElement + From<BaseElement>>(
+    constraints: &mut[E], 
+    current: &[E],
+    next: &[E],
+    builtin_offset: usize,
+) {
+    let ONE = E::ONE;
+
+    constraints[MEMORY_INCREASING_0] = (current[MEMORY_ADDR_SORTED_0 - builtin_offset]
+        - current[MEMORY_ADDR_SORTED_1 - builtin_offset])
+        * (current[MEMORY_ADDR_SORTED_1 - builtin_offset]
+            - current[MEMORY_ADDR_SORTED_0 - builtin_offset]
+            - ONE);
+
+    constraints[MEMORY_INCREASING_1] = (current[MEMORY_ADDR_SORTED_1 - builtin_offset]
+        - current[MEMORY_ADDR_SORTED_2 - builtin_offset])
+        * (current[MEMORY_ADDR_SORTED_2 - builtin_offset]
+            - current[MEMORY_ADDR_SORTED_1 - builtin_offset]
+            - ONE);
+
+    constraints[MEMORY_INCREASING_2] = (current[MEMORY_ADDR_SORTED_2 - builtin_offset]
+        - current[MEMORY_ADDR_SORTED_3 - builtin_offset])
+        * (current[MEMORY_ADDR_SORTED_3 - builtin_offset]
+            - current[MEMORY_ADDR_SORTED_2 - builtin_offset]
+            - ONE);
+
+    constraints[MEMORY_INCREASING_3] = (current[MEMORY_ADDR_SORTED_3 - builtin_offset]
+        - next[MEMORY_ADDR_SORTED_0 - builtin_offset])
+        * (next[MEMORY_ADDR_SORTED_0 - builtin_offset]
+            - current[MEMORY_ADDR_SORTED_3 - builtin_offset]
+            - ONE);
+
+    constraints[MEMORY_CONSISTENCY_0] = (current[MEMORY_VALUES_SORTED_0 - builtin_offset]
+        - current[MEMORY_VALUES_SORTED_1 - builtin_offset])
+        * (current[MEMORY_ADDR_SORTED_1 - builtin_offset]
+            - current[MEMORY_ADDR_SORTED_0 - builtin_offset]
+            - ONE);
+
+    constraints[MEMORY_CONSISTENCY_1] = (current[MEMORY_VALUES_SORTED_1 - builtin_offset]
+        - current[MEMORY_VALUES_SORTED_2 - builtin_offset])
+        * (current[MEMORY_ADDR_SORTED_2 - builtin_offset]
+            - current[MEMORY_ADDR_SORTED_1 - builtin_offset]
+            - ONE);
+
+    constraints[MEMORY_CONSISTENCY_2] = (current[MEMORY_VALUES_SORTED_2 - builtin_offset]
+        - current[MEMORY_VALUES_SORTED_3 - builtin_offset])
+        * (current[MEMORY_ADDR_SORTED_3 - builtin_offset]
+            - current[MEMORY_ADDR_SORTED_2 - builtin_offset]
+            - ONE);
+
+    constraints[MEMORY_CONSISTENCY_3] = (current[MEMORY_VALUES_SORTED_3 - builtin_offset]
+        - next[MEMORY_VALUES_SORTED_0 - builtin_offset])
+        * (next[MEMORY_ADDR_SORTED_0 - builtin_offset]
+            - current[MEMORY_ADDR_SORTED_3 - builtin_offset]
+            - ONE);
 }

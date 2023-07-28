@@ -1,7 +1,5 @@
 use winterfell::math::StarkField;
 
-use crate::Felt252;
-
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct CairoTraceTable<B: StarkField>{
     /// `table` is row-major trace element description
