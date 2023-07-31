@@ -81,6 +81,12 @@ impl RegisterStates {
         let data = fs::read(path)?;
         Self::from_bytes_le(&data)
     }
+
+    pub fn print_trace(&self) {
+        for i in 0..self.rows.len() {
+            println!("idx {:?} pc {:?} fp {:?} ap {:?}", i, self.rows[i].pc, self.rows[i].fp, self.rows[i].ap);
+        }
+    }
 }
 
 #[cfg(test)]

@@ -100,7 +100,9 @@ impl <B: StarkField> CairoTraceTable<B> {
 
 #[cfg(test)]
 mod test {
-    use crate::{Felt252, cairo::cairo_trace::CairoTraceTable};
+    use winterfell::TraceTable;
+
+    use crate::{Felt252, cairo::cairo_trace::CairoTraceTable, utils::print_trace};
 
     #[test]
     fn test_cols() {
@@ -111,6 +113,16 @@ mod test {
         let res_cols = trace_table.cols();
 
         assert_eq!(res_cols, vec![col_1, col_2]);
+    }
+
+    #[test]
+    fn test_cairo_trace_table_to_winter_trace_table() {
+        let col_1 = vec![Felt252::from(1), Felt252::from(2), Felt252::from(5), Felt252::from(13), Felt252::from(1), Felt252::from(2), Felt252::from(5), Felt252::from(13)];
+        let col_2 = vec![Felt252::from(1), Felt252::from(3), Felt252::from(8), Felt252::from(21), Felt252::from(1), Felt252::from(2), Felt252::from(5), Felt252::from(13)];
+        let cairo_trace_table = CairoTraceTable::<Felt252>::new_from_cols(&[col_1.clone(), col_2.clone()]);
+        let winter_trace_table = TraceTable::<Felt252>::init(cairo_trace_table.cols());
+        // println!("winter_trace_table {:?}", winter_trace_table.get_column(0));
+        // println!("cairo_trace_table {:?}", cairo_trace_table.get_cols(&[0]));
     }
 
     #[test]

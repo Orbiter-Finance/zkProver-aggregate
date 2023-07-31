@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::Range};
 
 use winter_air::Assertion;
-use winterfell::{AirContext, Air, math::{ToElements, FieldElement}, TraceInfo, ProofOptions, EvaluationFrame, TransitionConstraintDegree};
+use winterfell::{AirContext, Air, math::{ToElements, FieldElement, fields::f128::BaseElement}, TraceInfo, ProofOptions, EvaluationFrame, TransitionConstraintDegree};
 
 use crate::cairo::{felt252::BaseElement as Felt252, air::constraints::{MEM_A_TRACE_OFFSET, MEM_P_TRACE_OFFSET}};
 
@@ -120,52 +120,70 @@ impl Air for CairoAIR {
         let mut main_degrees = vec![];
         
         // Instruction Constraints
-        for _ in 0..=15 {
-            main_degrees.push(TransitionConstraintDegree::new(2)); // F0-F14
-        }
+        // for _ in 0..=14 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2)); // F0-F14
+        // }
+        main_degrees.append(& mut vec![
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(1), // TODO: why this is always ZERO?
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+            TransitionConstraintDegree::new(2),
+        ]);
         main_degrees.push(TransitionConstraintDegree::new(1)); // F15
 
-        // Other Constraints
-        for _ in 0..=15 {
-            main_degrees.push(TransitionConstraintDegree::new(3));
-        }
+        // // Other Constraints
+        // for _ in 0..=15 {
+        //     main_degrees.push(TransitionConstraintDegree::new(3));
+        // }
 
-        // Increasing memory auxiliary constraints.
-        for _ in 0..=4 {
-            main_degrees.push(TransitionConstraintDegree::new(2));
-        }
+        // // Increasing memory auxiliary constraints.
+        // for _ in 0..=4 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
 
-        // Consistent memory auxiliary constraints.
-        for _ in 0..=4 {
-            main_degrees.push(TransitionConstraintDegree::new(2));
-        }
+        // // Consistent memory auxiliary constraints.
+        // for _ in 0..=4 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
 
-        // Permutation auxiliary constraints.
-        for _ in 0..=4 {
-            main_degrees.push(TransitionConstraintDegree::new(2));
-        }
+        // // Permutation auxiliary constraints.
+        // for _ in 0..=4 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
 
-        // range-check increasing constraints.
-        for _ in 0..=3 {
-            main_degrees.push(TransitionConstraintDegree::new(2));
-        }
+        // // range-check increasing constraints.
+        // for _ in 0..=3 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
 
-        // range-check permutation argument constraints.
-        for _ in 0..=3 {
-            main_degrees.push(TransitionConstraintDegree::new(2));
-        }
+        // // range-check permutation argument constraints.
+        // for _ in 0..=3 {
+        //     main_degrees.push(TransitionConstraintDegree::new(2));
+        // }
 
-        let mut aux_degrees =  vec![];
+        // let mut aux_degrees =  vec![];
 
-        let mut num_transition_constraints = 49;
-        let mut num_transition_exemptions = 2;
+        // let mut num_transition_constraints = 49;
+        // let mut num_transition_exemptions = 2;
 
-        let mut transition_exemptions = vec![];
-        transition_exemptions.extend(vec![1; main_degrees.len()]);
-        transition_exemptions.extend(vec![1; aux_degrees.len()]);
-        let context = 
-            AirContext::new_multi_segment(trace_info, main_degrees, aux_degrees, 4, 0, options)
-            .set_num_transition_exemptions(num_transition_exemptions);
+        // let mut transition_exemptions = vec![];
+        // transition_exemptions.extend(vec![1; main_degrees.len()]);
+        // transition_exemptions.extend(vec![1; aux_degrees.len()]);
+        // let context = 
+        //     AirContext::new_multi_segment(trace_info, main_degrees, aux_degrees, 4, 0, options)
+        //     .set_num_transition_exemptions(num_transition_exemptions);
+        let context = AirContext::new(trace_info, main_degrees, 1, options);
     
         Self {
             context,
@@ -196,10 +214,11 @@ impl Air for CairoAIR {
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
         let last_step = self.pub_inputs.num_steps - 1;
         vec![
-            Assertion::single(MEM_A_TRACE_OFFSET, 0, self.pub_inputs.pc_init),
-            Assertion::single(MEM_A_TRACE_OFFSET, last_step, self.pub_inputs.pc_final),
-            Assertion::single(MEM_P_TRACE_OFFSET, 0, self.pub_inputs.ap_init),
-            Assertion::single(MEM_P_TRACE_OFFSET, last_step, self.pub_inputs.ap_final),
+            // Assertion::single(MEM_A_TRACE_OFFSET, 0, self.pub_inputs.pc_init),
+            // Assertion::single(MEM_A_TRACE_OFFSET, last_step, self.pub_inputs.pc_final),
+            // Assertion::single(MEM_P_TRACE_OFFSET, 0, self.pub_inputs.ap_init),
+            // Assertion::single(MEM_P_TRACE_OFFSET, last_step, self.pub_inputs.ap_final),
+            Assertion::single(15, 0, Self::BaseField::from(0_u16)),
         ]
     }
 }

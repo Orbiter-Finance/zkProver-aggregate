@@ -21,6 +21,19 @@ pub fn prove_cairo_trace(
 
 }
 
+pub fn verify_cairo_proof(
+    proof: StarkProof,
+    pub_inputs: PublicInputs,
+) {
+    type Sha3_256_felt = winterfell::crypto::hashers::Sha3_256<Felt252>;
+    type rand_coin = DefaultRandomCoin<Sha3_256_felt>;
+    // verify correct program execution
+    match winterfell::verify::<CairoAIR, Sha3_256_felt, rand_coin>(proof, pub_inputs) {
+        Ok(_) => println!("Execution verified"),
+        Err(err) => println!("Failed to verify execution: {}", err),
+    }
+}
+
 pub struct CairoProver<H: ElementHasher> {
     public_inputs: PublicInputs,
     options: ProofOptions,

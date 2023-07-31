@@ -6,6 +6,7 @@ use crate::cairo::cairo_mem::CairoMemory;
 use crate::cairo::cairo_trace::CairoTraceTable;
 use crate::cairo::execution_trace::build_main_trace;
 use crate::cairo::register_states::RegisterStates;
+use crate::utils::print_trace;
 use cairo_lang_starknet::casm_contract_class::CasmContractClass;
 use cairo_vm::cairo_run::{self, EncodeTraceError};
 use cairo_vm::hint_processor::cairo_1_hint_processor::hint_processor::Cairo1HintProcessor;
@@ -17,7 +18,7 @@ use cairo_vm::vm::errors::{
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use lambdaworks_math::field::fields::fft_friendly::stark_252_prime_field::Stark252PrimeField;
-use winterfell::TraceTable;
+use winterfell::{TraceTable, Trace};
 use std::ops::Range;
 use thiserror::Error;
 
@@ -214,6 +215,9 @@ pub fn generate_prover_args(
 
     let (register_states, memory, program_size, range_check_builtin_range) =
         run_program(None, CairoLayout::Plain, program_content).unwrap();
+
+    // register_states.print_trace();
+    println!("programe_size {:?} range_check_builtin_range {:?}", program_size, range_check_builtin_range);
     
     let memory_segments = create_memory_segment_map(range_check_builtin_range, output_range);
 
@@ -223,6 +227,8 @@ pub fn generate_prover_args(
     
     let main_trace = build_main_trace(&register_states, &memory, &mut pub_inputs);
     let winter_main_trace = TraceTable::init(main_trace.cols());
+    // print_trace(&winter_main_trace, 8, 7 , Range { start: 3, end: 5 });
+    println!("winter_main_trace {:?}", winter_main_trace.length());
 
     Ok((winter_main_trace, pub_inputs))
 
@@ -245,8 +251,9 @@ fn create_memory_segment_map(
 }
 
 mod tests {
+    use crate::cairo::air::CairoAIR;
     use crate::cairo::air::proof_options::CairoProofOptions;
-    use crate::cairo::prover::prove_cairo_trace;
+    use crate::cairo::prover::{prove_cairo_trace, verify_cairo_proof};
     use crate::cairo::register_states;
     use super::*;
     use super::run_program;
@@ -260,8 +267,9 @@ mod tests {
         let proof_options = CairoProofOptions::default().into_inner();
 
         let (main_trace, pub_inputs) = generate_prover_args(&program_content, &None).unwrap();
-        let (star_proof, pub_inputs_proof) = prove_cairo_trace(main_trace, pub_inputs, &proof_options).unwrap();
-
-
+        let (stark_proof, pub_inputs_proof) = prove_cairo_trace(main_trace, pub_inputs, &proof_options).unwrap();
+        let proof_bytes = stark_proof.to_bytes();
+        println!("Proof size: {:.1} KB", proof_bytes.len() as f64 / 1024f64);
+        verify_cairo_proof(stark_proof, pub_inputs_proof);
     }
 }

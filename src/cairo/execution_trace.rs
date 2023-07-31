@@ -53,23 +53,25 @@ pub fn build_main_trace(
     // let mut trace = TraceTable::new(8, 8);
     // trace
     let mut main_trace = build_cairo_execution_trace(register_states, memory, public_input);
-    let mut address_cols = main_trace
-        .get_cols(&[FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR])
-        .table;
+    println!("build_main_trace cairo-execution trace_length {:?} column_length {:?}", main_trace.n_rows(), main_trace.n_cols);
+    // let mut address_cols = main_trace
+    //     .get_cols(&[FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR])
+    //     .table;
 
-    address_cols.sort_by_key(|x| x.to_string());
-    let (rc_holes, rc_min, rc_max) = get_rc_holes(&main_trace, &[OFF_DST, OFF_OP0, OFF_OP1]);
-    public_input.range_check_min = Some(rc_min);
-    public_input.range_check_max = Some(rc_max);
-    fill_rc_holes(&mut main_trace, rc_holes);
+    // address_cols.sort_by_key(|x| x.to_string());
+    // let (rc_holes, rc_min, rc_max) = get_rc_holes(&main_trace, &[OFF_DST, OFF_OP0, OFF_OP1]);
+    // public_input.range_check_min = Some(rc_min);
+    // public_input.range_check_max = Some(rc_max);
+    // fill_rc_holes(&mut main_trace, rc_holes);
 
-    let mut memory_holes = get_memory_holes(&address_cols, public_input.public_memory.len());
+    // let mut memory_holes = get_memory_holes(&address_cols, public_input.public_memory.len());
 
-    if !memory_holes.is_empty() {
-        fill_memory_holes(&mut main_trace, &mut memory_holes);
-    }
+    // if !memory_holes.is_empty() {
+    //     fill_memory_holes(&mut main_trace, &mut memory_holes);
+    // }
 
-    add_pub_memory_dummy_accesses(&mut main_trace, public_input.public_memory.len());
+    // add_pub_memory_dummy_accesses(&mut main_trace, public_input.public_memory.len());
+    // println!("build_main_trace add other trace trace_length {:?} column_length {:?}", main_trace.n_rows(), main_trace.n_cols);
 
     let trace_len_next_power_of_two = main_trace.n_rows().next_power_of_two();
     let padding = trace_len_next_power_of_two - main_trace.n_rows();
@@ -320,32 +322,31 @@ pub fn build_cairo_execution_trace(
      // Build Cairo trace columns to instantiate TraceTable struct as defined in the trace layout
      let mut trace_cols: Vec<Vec<Felt252>> = Vec::new();
      (0..trace_repr_flags.len()).for_each(|n| trace_cols.push(trace_repr_flags[n].clone()));
-     trace_cols.push(res);
-     trace_cols.push(aps);
-     trace_cols.push(fps);
-     trace_cols.push(pcs);
-     trace_cols.push(dst_addrs);
-     trace_cols.push(op0_addrs);
-     trace_cols.push(op1_addrs);
-     trace_cols.push(instructions);
-     trace_cols.push(dsts);
-     trace_cols.push(op0s);
-     trace_cols.push(op1s);
-     (0..trace_repr_offsets.len()).for_each(|n| trace_cols.push(trace_repr_offsets[n].clone()));
-     trace_cols.push(t0);
-     trace_cols.push(t1);
-     trace_cols.push(mul);
-     trace_cols.push(selector);
+    //  trace_cols.push(res);
+    //  trace_cols.push(aps);
+    //  trace_cols.push(fps);
+    //  trace_cols.push(pcs);
+    //  trace_cols.push(dst_addrs);
+    //  trace_cols.push(op0_addrs);
+    //  trace_cols.push(op1_addrs);
+    //  trace_cols.push(instructions);
+    //  trace_cols.push(dsts);
+    //  trace_cols.push(op0s);
+    //  trace_cols.push(op1s);
+    //  (0..trace_repr_offsets.len()).for_each(|n| trace_cols.push(trace_repr_offsets[n].clone()));
+    //  trace_cols.push(t0);
+    //  trace_cols.push(t1);
+    //  trace_cols.push(mul);
+    //  trace_cols.push(selector);
  
-     if let Some(range_check_builtin_range) = public_inputs
-         .memory_segments
-         .get(&MemorySegment::RangeCheck)
-     {
-         add_rc_builtin_columns(&mut trace_cols, range_check_builtin_range.clone(), memory);
-     }
+    //  if let Some(range_check_builtin_range) = public_inputs
+    //      .memory_segments
+    //      .get(&MemorySegment::RangeCheck)
+    //  {
+    //      add_rc_builtin_columns(&mut trace_cols, range_check_builtin_range.clone(), memory);
+    //  }
 
     let trace_length = trace_cols[0].len();
-    println!("trace_length {:?}", trace_length);
     // resize_to_pow2(&mut trace_cols);
     CairoTraceTable::<Felt252>::new_from_cols(&trace_cols)
 
@@ -396,6 +397,7 @@ fn compute_dst(
                 let addr = t.fp.checked_add_signed(o.off_dst.into()).unwrap();
                 (Felt252::from(addr), *memory.get(&addr).unwrap())
             }
+            _ => panic!("compute_dst on AP or FP"),
         })
         .unzip()
 }

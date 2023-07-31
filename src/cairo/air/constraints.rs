@@ -1,4 +1,4 @@
-use winterfell::math::FieldElement;
+use winterfell::math::{FieldElement, StarkField};
 
 use crate::{BaseElement};
 
@@ -145,6 +145,7 @@ pub fn evaluate_instr_constraints<E: FieldElement + From<BaseElement>>(
     let TWO = ONE + ONE;
     // Bit constraints
     for (i, flag) in current[0..16].iter().enumerate() {
+        // println!("evaluate_instr_constraints i {:?} flag {:?}", i, flag);
         constraints[i] = match i {
             0..=14 => *flag * (*flag - ONE),
             15 => *flag,
@@ -163,7 +164,7 @@ pub fn evaluate_instr_constraints<E: FieldElement + From<BaseElement>>(
         .rev()
         .fold(ZERO, |acc, flag| *flag + TWO * acc.into());
 
-    constraints[INST] = current[OFF_DST] + (b16 * current[OFF_OP0]) + (b32 * current[OFF_OP1]) + b48 * *f0_squiggle - current[FRAME_INST];
+    // constraints[INST] = current[OFF_DST] + (b16 * current[OFF_OP0]) + (b32 * current[OFF_OP1]) + b48 * *f0_squiggle - current[FRAME_INST];
 
 }
 

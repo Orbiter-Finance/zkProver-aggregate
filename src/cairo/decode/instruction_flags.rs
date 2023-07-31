@@ -93,6 +93,7 @@ impl Op0Reg {
         match self {
             Op0Reg::AP => Felt252::ZERO,
             Op0Reg::FP => Felt252::ONE,
+            _ => panic!("Op0Reg to_trace_representation element index must be 0 or 1, but was another"),
         }
     }
 }
@@ -352,6 +353,8 @@ impl TryFrom<&Felt252> for CairoOpcode {
 
 #[cfg(test)]
 mod tests {
+    use core::num;
+
     use super::*;
     /*
     For the purpose of testing the decoding, we are going to use instructions obtained
@@ -718,5 +721,14 @@ mod tests {
         let representation = flags.to_trace_representation();
 
         assert_eq!(representation, expected_representation);
+    }
+
+    #[test] 
+    fn test_aux_get_last_nim_of_field_element() {
+        let number = 13_u64;
+        let target = Felt252::from(number);
+        let last_nim_number = aux_get_last_nim_of_field_element(&target);
+
+        assert_eq!(number, last_nim_number);
     }
 }
