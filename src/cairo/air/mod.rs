@@ -124,53 +124,48 @@ impl Air for CairoAIR {
         //     main_degrees.push(TransitionConstraintDegree::new(2)); // F0-F14
         // }
         main_degrees.append(& mut vec![
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(1), // TODO: why this is always ZERO?
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
-            TransitionConstraintDegree::new(2),
+
+            // evaluate_instr_constraints
+            TransitionConstraintDegree::new(2), // 0  Flag0
+            TransitionConstraintDegree::new(2), // 1  Flag1
+            TransitionConstraintDegree::new(2), // 2  Flag2
+            TransitionConstraintDegree::new(2), // 3  Flag3
+            TransitionConstraintDegree::new(2), // 4  Flag4
+            TransitionConstraintDegree::new(2), // 5  Flag5
+            TransitionConstraintDegree::new(1), // 6  TODO: Flag6 degree num should be 2?
+            TransitionConstraintDegree::new(2), // 7  Flag7
+            TransitionConstraintDegree::new(2), // 8  Flag8
+            TransitionConstraintDegree::new(2), // 9  Flag9
+            TransitionConstraintDegree::new(2), // 10 Flag10
+            TransitionConstraintDegree::new(2), // 11 Flag11
+            TransitionConstraintDegree::new(2), // 12 Flag12
+            TransitionConstraintDegree::new(2), // 13 Flag13
+            TransitionConstraintDegree::new(2), // 14 Flag14
+            TransitionConstraintDegree::new(1), // 15 Flag15
+            TransitionConstraintDegree::new(1), // 16 TODO: INST degree num should be 2?
+            
+            // evaluate_operand_constraints
+            TransitionConstraintDegree::new(2), // 17 TODO: DST_ADDR
+            TransitionConstraintDegree::new(2), // 18 OP0_ADDR
+            TransitionConstraintDegree::new(2), // 19 OP1_ADDR
+
+            //evaluate_register_constraints
+            TransitionConstraintDegree::new(2), // 20 NEXT_AP
+            TransitionConstraintDegree::new(1), // 21 NEXT_FP
+            TransitionConstraintDegree::new(2), // 22 NEXT_PC_1
+            TransitionConstraintDegree::new(1), // 23 NEXT_PC_2
+            TransitionConstraintDegree::new(2), // 24 T0
+            TransitionConstraintDegree::new(2), // 25 T1
+            
+            TransitionConstraintDegree::new(2), // 26 MUL1 
+            TransitionConstraintDegree::new(2), // 27 MUL2
+            TransitionConstraintDegree::new(2), // 28 CALL_1
+            TransitionConstraintDegree::new(2), // 29 CALL_2
+            TransitionConstraintDegree::new(2), // 30 ASSERT_EQ
+
+            // TransitionConstraintDegree::new(1),
+
         ]);
-        main_degrees.push(TransitionConstraintDegree::new(1)); // F15
-
-        // // Other Constraints
-        // for _ in 0..=15 {
-        //     main_degrees.push(TransitionConstraintDegree::new(3));
-        // }
-
-        // // Increasing memory auxiliary constraints.
-        // for _ in 0..=4 {
-        //     main_degrees.push(TransitionConstraintDegree::new(2));
-        // }
-
-        // // Consistent memory auxiliary constraints.
-        // for _ in 0..=4 {
-        //     main_degrees.push(TransitionConstraintDegree::new(2));
-        // }
-
-        // // Permutation auxiliary constraints.
-        // for _ in 0..=4 {
-        //     main_degrees.push(TransitionConstraintDegree::new(2));
-        // }
-
-        // // range-check increasing constraints.
-        // for _ in 0..=3 {
-        //     main_degrees.push(TransitionConstraintDegree::new(2));
-        // }
-
-        // // range-check permutation argument constraints.
-        // for _ in 0..=3 {
-        //     main_degrees.push(TransitionConstraintDegree::new(2));
-        // }
 
         // let mut aux_degrees =  vec![];
 
@@ -205,9 +200,9 @@ impl Air for CairoAIR {
         let current = frame.current();
         let next = frame.next();
         evaluate_instr_constraints(result, current);
-        // evaluate_operand_constraints(result, current);
-        // evaluate_register_constraints(result, current, next);
-        // evaluate_opcode_constraints(result, current);
+        evaluate_operand_constraints(result, current);
+        evaluate_register_constraints(result, current, next);
+        evaluate_opcode_constraints(result, current);
         // enforce_selector(result, current);
     }
 

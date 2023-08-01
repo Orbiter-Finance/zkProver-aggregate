@@ -251,6 +251,8 @@ fn create_memory_segment_map(
 }
 
 mod tests {
+    use winterfell::math::FieldElement;
+
     use crate::cairo::air::CairoAIR;
     use crate::cairo::air::proof_options::CairoProofOptions;
     use crate::cairo::prover::{prove_cairo_trace, verify_cairo_proof};

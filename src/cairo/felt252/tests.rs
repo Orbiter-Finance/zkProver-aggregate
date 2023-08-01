@@ -233,3 +233,9 @@ fn from_hex_string() {
     let from_hex = BaseElement::from_hex("ff");
     println!("from_hex {:?}", from_hex.to_string());
 }
+
+#[test]
+fn test_representation() {
+    let ONE = BaseElement::from(1);
+    println!("ONE {:?}", ONE);
+}

@@ -274,7 +274,7 @@ pub fn build_cairo_execution_trace(
     compute_op0(&flags, &offsets, raw_trace, memory);
     let (op1_addrs, op1s): (Vec<Felt252>, Vec<Felt252>) =
     compute_op1(&flags, &offsets, raw_trace, memory, &op0s);
-    let mut res = compute_res(&flags, &op0s, &op1s, &dsts);
+    let mut res: Vec<crate::BaseElement> = compute_res(&flags, &op0s, &op1s, &dsts);
 
      // In some cases op0, dst or res may need to be updated from the already calculated values
      update_values(&flags, raw_trace, &mut op0s, &mut dsts, &mut res);
@@ -322,29 +322,29 @@ pub fn build_cairo_execution_trace(
      // Build Cairo trace columns to instantiate TraceTable struct as defined in the trace layout
      let mut trace_cols: Vec<Vec<Felt252>> = Vec::new();
      (0..trace_repr_flags.len()).for_each(|n| trace_cols.push(trace_repr_flags[n].clone()));
-    //  trace_cols.push(res);
-    //  trace_cols.push(aps);
-    //  trace_cols.push(fps);
-    //  trace_cols.push(pcs);
-    //  trace_cols.push(dst_addrs);
-    //  trace_cols.push(op0_addrs);
-    //  trace_cols.push(op1_addrs);
-    //  trace_cols.push(instructions);
-    //  trace_cols.push(dsts);
-    //  trace_cols.push(op0s);
-    //  trace_cols.push(op1s);
-    //  (0..trace_repr_offsets.len()).for_each(|n| trace_cols.push(trace_repr_offsets[n].clone()));
-    //  trace_cols.push(t0);
-    //  trace_cols.push(t1);
-    //  trace_cols.push(mul);
-    //  trace_cols.push(selector);
+     trace_cols.push(res);
+     trace_cols.push(aps);
+     trace_cols.push(fps);
+     trace_cols.push(pcs);
+     trace_cols.push(dst_addrs);
+     trace_cols.push(op0_addrs);
+     trace_cols.push(op1_addrs);
+     trace_cols.push(instructions);
+     trace_cols.push(dsts);
+     trace_cols.push(op0s);
+     trace_cols.push(op1s);
+     (0..trace_repr_offsets.len()).for_each(|n| trace_cols.push(trace_repr_offsets[n].clone()));
+     trace_cols.push(t0);
+     trace_cols.push(t1);
+     trace_cols.push(mul);
+     trace_cols.push(selector);
  
-    //  if let Some(range_check_builtin_range) = public_inputs
-    //      .memory_segments
-    //      .get(&MemorySegment::RangeCheck)
-    //  {
-    //      add_rc_builtin_columns(&mut trace_cols, range_check_builtin_range.clone(), memory);
-    //  }
+     if let Some(range_check_builtin_range) = public_inputs
+         .memory_segments
+         .get(&MemorySegment::RangeCheck)
+     {
+         add_rc_builtin_columns(&mut trace_cols, range_check_builtin_range.clone(), memory);
+     }
 
     let trace_length = trace_cols[0].len();
     // resize_to_pow2(&mut trace_cols);
