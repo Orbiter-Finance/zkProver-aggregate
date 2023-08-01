@@ -145,25 +145,25 @@ impl Air for CairoAIR {
             TransitionConstraintDegree::new(1), // 16 TODO: INST degree num should be 2?
             
             // evaluate_operand_constraints
-            TransitionConstraintDegree::new(2), // 17 TODO: DST_ADDR
-            TransitionConstraintDegree::new(2), // 18 OP0_ADDR
-            TransitionConstraintDegree::new(2), // 19 OP1_ADDR
+            TransitionConstraintDegree::new(3), // 17 TODO: DST_ADDR
+            TransitionConstraintDegree::new(3), // 18 OP0_ADDR
+            TransitionConstraintDegree::new(3), // 19 OP1_ADDR
 
             //evaluate_register_constraints
-            TransitionConstraintDegree::new(2), // 20 NEXT_AP
+            TransitionConstraintDegree::new(3), // 20 NEXT_AP
             TransitionConstraintDegree::new(1), // 21 NEXT_FP
-            TransitionConstraintDegree::new(2), // 22 NEXT_PC_1
+            TransitionConstraintDegree::new(3), // 22 NEXT_PC_1
             TransitionConstraintDegree::new(1), // 23 NEXT_PC_2
-            TransitionConstraintDegree::new(2), // 24 T0
-            TransitionConstraintDegree::new(2), // 25 T1
+            TransitionConstraintDegree::new(3), // 24 T0
+            TransitionConstraintDegree::new(3), // 25 T1
             
-            TransitionConstraintDegree::new(2), // 26 MUL1 
-            TransitionConstraintDegree::new(2), // 27 MUL2
-            TransitionConstraintDegree::new(2), // 28 CALL_1
-            TransitionConstraintDegree::new(2), // 29 CALL_2
-            TransitionConstraintDegree::new(2), // 30 ASSERT_EQ
+            TransitionConstraintDegree::new(3), // 26 MUL1 
+            TransitionConstraintDegree::new(3), // 27 MUL2
+            TransitionConstraintDegree::new(3), // 28 CALL_1
+            TransitionConstraintDegree::new(3), // 29 CALL_2
+            TransitionConstraintDegree::new(3), // 30 ASSERT_EQ
 
-            // TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(1),
 
         ]);
 
@@ -203,7 +203,7 @@ impl Air for CairoAIR {
         evaluate_operand_constraints(result, current);
         evaluate_register_constraints(result, current, next);
         evaluate_opcode_constraints(result, current);
-        // enforce_selector(result, current);
+        enforce_selector(result, current);
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
