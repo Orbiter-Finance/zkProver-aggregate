@@ -211,22 +211,22 @@ pub fn evaluate_register_constraints<E: FieldElement + From<BaseElement>>(
         + current[F_OPC_CALL] * TWO
         - next[FRAME_AP];
 
-    // constraints[NEXT_FP] = current[F_OPC_RET] * current[FRAME_DST]
-    //     + current[F_OPC_CALL] * (current[FRAME_AP] + TWO)
-    //     + (ONE - current[F_OPC_RET] - current[F_OPC_CALL]) * current[FRAME_FP]
-    //     - next[FRAME_FP];
+    constraints[NEXT_FP] = current[F_OPC_RET] * current[FRAME_DST]
+        + current[F_OPC_CALL] * (current[FRAME_AP] + TWO)
+        + (ONE - current[F_OPC_RET] - current[F_OPC_CALL]) * current[FRAME_FP]
+        - next[FRAME_FP];
 
     // pc constraints
     constraints[NEXT_PC_1] = (current[FRAME_T1] - current[F_PC_JNZ])
         * (next[FRAME_PC] - (current[FRAME_PC] + frame_inst_size(current)));
 
-    // constraints[NEXT_PC_2] = current[FRAME_T0]
-    //     * (next[FRAME_PC] - (current[FRAME_PC] + current[FRAME_OP1]))
-    //     + (ONE - current[F_PC_JNZ]) * next[FRAME_PC]
-    //     - ((ONE - current[F_PC_ABS] - current[F_PC_REL] - current[F_PC_JNZ])
-    //         * (current[FRAME_PC] + frame_inst_size(current))
-    //         + current[F_PC_ABS] * current[FRAME_RES]
-    //         + current[F_PC_REL] * (current[FRAME_PC] + current[FRAME_RES]));
+    constraints[NEXT_PC_2] = current[FRAME_T0]
+        * (next[FRAME_PC] - (current[FRAME_PC] + current[FRAME_OP1]))
+        + (ONE - current[F_PC_JNZ]) * next[FRAME_PC]
+        - ((ONE - current[F_PC_ABS] - current[F_PC_REL] - current[F_PC_JNZ])
+            * (current[FRAME_PC] + frame_inst_size(current))
+            + current[F_PC_ABS] * current[FRAME_RES]
+            + current[F_PC_REL] * (current[FRAME_PC] + current[FRAME_RES]));
 
     constraints[T0] = current[F_PC_JNZ] * current[FRAME_DST] - current[FRAME_T0];
     constraints[T1] = current[FRAME_T0] * current[FRAME_RES] - current[FRAME_T1];

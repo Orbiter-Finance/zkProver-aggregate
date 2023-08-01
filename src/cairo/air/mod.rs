@@ -151,9 +151,9 @@ impl Air for CairoAIR {
 
             //evaluate_register_constraints
             TransitionConstraintDegree::new(3), // 20 NEXT_AP
-            TransitionConstraintDegree::new(1), // 21 NEXT_FP
+            TransitionConstraintDegree::new(3), // 21 NEXT_FP
             TransitionConstraintDegree::new(3), // 22 NEXT_PC_1
-            TransitionConstraintDegree::new(1), // 23 NEXT_PC_2
+            TransitionConstraintDegree::new(3), // 23 NEXT_PC_2
             TransitionConstraintDegree::new(3), // 24 T0
             TransitionConstraintDegree::new(3), // 25 T1
             
