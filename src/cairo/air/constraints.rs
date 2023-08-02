@@ -128,7 +128,7 @@ pub const MEM_A_TRACE_OFFSET: usize = 19;
 
 // If Cairo AIR doesn't implement builtins, the auxiliary columns should have a smaller
 // index.
-const BUILTIN_OFFSET: usize = 9;
+pub const BUILTIN_OFFSET: usize = 9;
 
 
 fn frame_inst_size<E: FieldElement + From<BaseElement>>(frame_row: &[E]) -> E {

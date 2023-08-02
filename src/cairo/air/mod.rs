@@ -5,7 +5,7 @@ use winterfell::{AirContext, Air, math::{ToElements, FieldElement, fields::f128:
 
 use crate::cairo::{felt252::BaseElement as Felt252, air::constraints::{MEM_A_TRACE_OFFSET, MEM_P_TRACE_OFFSET}};
 
-use self::constraints::{evaluate_instr_constraints, evaluate_operand_constraints, evaluate_register_constraints, enforce_selector, evaluate_opcode_constraints};
+use self::constraints::{evaluate_instr_constraints, evaluate_operand_constraints, evaluate_register_constraints, enforce_selector, evaluate_opcode_constraints, memory_is_increasing, BUILTIN_OFFSET};
 
 use super::{register_states::RegisterStates, cairo_mem::CairoMemory};
 
@@ -106,7 +106,17 @@ pub struct CairoAIR {
     pub context: AirContext<Felt252>,
     // pub trace_length: usize,
     pub pub_inputs: PublicInputs,
-    // has_rc_builtin: bool,
+    has_rc_builtin: bool,
+}
+
+impl CairoAIR {
+    fn get_builtin_offset(&self) -> usize {
+        if self.has_rc_builtin {
+            0
+        } else {
+            BUILTIN_OFFSET
+        }
+    }
 }
 
 impl Air for CairoAIR {
@@ -118,11 +128,7 @@ impl Air for CairoAIR {
 
         debug_assert!(trace_info.length().is_power_of_two());
         let mut main_degrees = vec![];
-        
-        // Instruction Constraints
-        // for _ in 0..=14 {
-        //     main_degrees.push(TransitionConstraintDegree::new(2)); // F0-F14
-        // }
+        let has_rc_builtin = !pub_inputs.memory_segments.is_empty();
         main_degrees.append(& mut vec![
 
             // evaluate_instr_constraints
@@ -142,7 +148,7 @@ impl Air for CairoAIR {
             TransitionConstraintDegree::new(2), // 13 Flag13
             TransitionConstraintDegree::new(2), // 14 Flag14
             TransitionConstraintDegree::new(1), // 15 Flag15
-            TransitionConstraintDegree::new(1), // 16 TODO: INST degree num should be 2?
+            TransitionConstraintDegree::new(2), // 16 TODO: INST degree num should be 2?
             
             // evaluate_operand_constraints
             TransitionConstraintDegree::new(3), // 17 TODO: DST_ADDR
@@ -163,7 +169,14 @@ impl Air for CairoAIR {
             TransitionConstraintDegree::new(3), // 29 CALL_2
             TransitionConstraintDegree::new(3), // 30 ASSERT_EQ
 
-            TransitionConstraintDegree::new(1),
+            TransitionConstraintDegree::new(1), // 31
+            // TransitionConstraintDegree::new(1), // 32 MEMORY_INCREASING_1
+            // TransitionConstraintDegree::new(1), // 33 MEMORY_INCREASING_2
+            // TransitionConstraintDegree::new(1), // 34 MEMORY_INCREASING_3
+            // TransitionConstraintDegree::new(1), // 35 MEMORY_CONSISTENCY_0
+            // TransitionConstraintDegree::new(1), // 36 MEMORY_CONSISTENCY_1
+            // TransitionConstraintDegree::new(1), // 37 MEMORY_CONSISTENCY_2
+            // TransitionConstraintDegree::new(1), // 38 MEMORY_CONSISTENCY_3
 
         ]);
 
@@ -183,12 +196,29 @@ impl Air for CairoAIR {
         Self {
             context,
             pub_inputs,
+            has_rc_builtin,
         }
 
     }
 
     fn context(&self) -> &AirContext<Felt252> {
         &self.context
+    }
+
+    fn evaluate_aux_transition<F, E>(
+            &self,
+            main_frame: &EvaluationFrame<F>,
+            aux_frame: &EvaluationFrame<E>,
+            periodic_values: &[F],
+            aux_rand_elements: &winter_air::AuxTraceRandElements<E>,
+            result: &mut [E],
+    ) where
+            F: FieldElement<BaseField = Self::BaseField>,
+            E: FieldElement<BaseField = Self::BaseField> + winterfell::math::ExtensionOf<F>, 
+    {
+        let curr = main_frame.current();
+        let aux = aux_frame.current();
+        // memory_is_increasing(result, current, next, builtin_offset);
     }
 
     fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
@@ -199,6 +229,7 @@ impl Air for CairoAIR {
     ) {
         let current = frame.current();
         let next = frame.next();
+        let builtin_offset = self.get_builtin_offset();
         evaluate_instr_constraints(result, current);
         evaluate_operand_constraints(result, current);
         evaluate_register_constraints(result, current, next);
