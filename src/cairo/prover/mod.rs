@@ -5,11 +5,11 @@ use winterfell::{crypto::{ElementHasher, DefaultRandomCoin}, ProofOptions, Prove
 
 use crate::Felt252;
 
-use super::{air::{CairoAIR, PublicInputs}, runner::errors::CairoProverError};
+use super::{air::{CairoAIR, PublicInputs}, runner::errors::CairoProverError, cairo_trace::CairoWinterTraceTable};
 
 
 pub fn prove_cairo_trace(
-    trace: TraceTable<Felt252>,
+    trace: CairoWinterTraceTable,
     public_inputs: PublicInputs,
     options: &ProofOptions
 ) -> Result<(StarkProof, PublicInputs), CairoProverError>{
@@ -60,7 +60,7 @@ where
 {
     type BaseField = Felt252;
     type Air = CairoAIR;
-    type Trace = TraceTable<Felt252>;
+    type Trace = CairoWinterTraceTable;
     type HashFn = H;
     type RandomCoin = DefaultRandomCoin<Self::HashFn>;
 

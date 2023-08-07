@@ -1,6 +1,67 @@
-use winterfell::math::{FieldElement, StarkField};
+use std::{ops::Range};
+
+use winterfell::math::{FieldElement, StarkField, ExtensionOf};
 
 use crate::{BaseElement};
+
+
+/// Returns a [Range] initialized with the specified `start` and with `end` set to `start` + `len`.
+pub const fn range(start: usize, len: usize) -> Range<usize> {
+    Range {
+        start,
+        end: start + len,
+    }
+}
+
+/// Aux constraint identifiers
+pub const A_M_PRIME: Range<usize> = range(0, 4);
+pub const V_M_PRIME: Range<usize> = range(4, 4);
+const P_M: Range<usize> = range(8, 4);
+const A_RC_PRIME: Range<usize> = range(12, 3);
+const P_RC: Range<usize> = range(15, 3);
+
+
+pub const MEM_A_TRACE_WIDTH: usize = 4;
+
+// AUX TRACE LAYOUT (Range check)
+// -----------------------------------------------------------------------------------------
+//  D.  a_rc_prime (3) : Sorted offset values
+//  E.  p_rc       (3) : Permutation product (range check)
+//
+//  D   E
+// ├xxx|xxx┤
+//
+
+pub const A_RC_PRIME_OFFSET: usize = 12;
+pub const A_RC_PRIME_WIDTH: usize = 3;
+
+pub const P_RC_OFFSET: usize = 15;
+pub const P_RC_WIDTH: usize = 3;
+
+
+// AUX TRACE LAYOUT (Memory)
+// -----------------------------------------------------------------------------------------
+//  A.  a_m_prime  (4) : Sorted memory address
+//  B.  v_m_prime  (4) : Sorted memory values
+//  C.  p_m        (4) : Permutation product (memory)
+//
+//  A    B    C
+// ├xxxx|xxxx|xxxx┤
+
+pub const A_M_PRIME_OFFSET: usize = 0;
+pub const A_M_PRIME_WIDTH: usize = 4;
+
+pub const V_M_PRIME_OFFSET: usize = 4;
+pub const V_M_PRIME_WIDTH: usize = 4;
+
+pub const P_M_OFFSET: usize = 8;
+pub const P_M_WIDTH: usize = 4;
+
+
+
+pub const OFF_X_TRACE_OFFSET: usize = 27;
+pub const OFF_X_TRACE_WIDTH: usize = 3;
+pub const OFF_X_TRACE_RANGE: Range<usize> = range(OFF_X_TRACE_OFFSET, OFF_X_TRACE_WIDTH);
 
 
 /// Main constraint identifiers
@@ -256,65 +317,73 @@ pub fn evaluate_opcode_constraints<E: FieldElement + From<BaseElement>>(
 pub fn enforce_selector<E: FieldElement + From<BaseElement>>(
     constraints: &mut[E], 
     current: &[E],
-) {
+)
+{
     for result_cell in constraints.iter_mut().take(ASSERT_EQ + 1).skip(INST) {
         *result_cell = *result_cell * current[FRAME_SELECTOR];
     }
 }
 
-pub fn memory_is_increasing<E: FieldElement + From<BaseElement>>(
+pub fn evaluate_aux_memory_constraints<F, E>(
     constraints: &mut[E], 
-    current: &[E],
-    next: &[E],
-    builtin_offset: usize,
-) {
-    let ONE = E::ONE;
+    main_current: &[F],
+    main_next: &[F],
+    aux_current: &[E],
+    aux_next: &[E],
+    random_elements: &[E],
+) 
+    where F: FieldElement + From<BaseElement>,
+    E: FieldElement + From<BaseElement> + ExtensionOf<F>,
+{
+    let z = random_elements[0];
+    let alpha = random_elements[1];
+    let TWO = E::ONE + E::ONE;
 
-    constraints[MEMORY_INCREASING_0] = (current[MEMORY_ADDR_SORTED_0 - builtin_offset]
-        - current[MEMORY_ADDR_SORTED_1 - builtin_offset])
-        * (current[MEMORY_ADDR_SORTED_1 - builtin_offset]
-            - current[MEMORY_ADDR_SORTED_0 - builtin_offset]
-            - ONE);
 
-    constraints[MEMORY_INCREASING_1] = (current[MEMORY_ADDR_SORTED_1 - builtin_offset]
-        - current[MEMORY_ADDR_SORTED_2 - builtin_offset])
-        * (current[MEMORY_ADDR_SORTED_2 - builtin_offset]
-            - current[MEMORY_ADDR_SORTED_1 - builtin_offset]
-            - ONE);
+    // Continuity constraint
+    // for (i, n) in A_M_PRIME.enumerate() {
+    //     // constraints[n] = (aux.a_m_prime(i + 1) - aux.a_m_prime(i))
+    //     // * (aux.a_m_prime(i + 1) - aux.a_m_prime(i) - F::ONE);
+    //     constraints[n] = (aux_current[i + 1] - aux_current[i]) 
+    //         * (aux_current[i + 1] - aux_current[i] - E::ONE);
+    //     // println!("constarints {:?}", (aux_current[i+1] - aux_current[i]) 
+    //     // * (aux_current[i + 1] - aux_current[i] - E::ONE));
+    //     // println!("aux_current[{:?}] - aux_current[{:?}] {:?}",i+1, i ,aux_current[i+1] - aux_current[i]);
+    //     // println!("aux_current[{:?}] - aux_current[{:?}] - E::ONE) {:?}",i+1, i, aux_current[i + 1] - aux_current[i] - E::ONE);
+    // }
+    constraints[0] = (aux_current[1] - aux_current[0])
+        * (aux_current[1] - aux_current[0] - E::ONE);
+    constraints[1] = (aux_current[2] - aux_current[1])
+        * (aux_current[2] - aux_current[1] - E::ONE);
+    constraints[2] = (aux_current[3] - aux_current[2])
+        * (aux_current[3] - aux_current[2] - E::ONE);
+    constraints[3] = (aux_next[0] - aux_current[3])
+        * (aux_next[0] - aux_current[3] - E::ONE);
 
-    constraints[MEMORY_INCREASING_2] = (current[MEMORY_ADDR_SORTED_2 - builtin_offset]
-        - current[MEMORY_ADDR_SORTED_3 - builtin_offset])
-        * (current[MEMORY_ADDR_SORTED_3 - builtin_offset]
-            - current[MEMORY_ADDR_SORTED_2 - builtin_offset]
-            - ONE);
+    // Single-valued constraint
+    // for (i, n) in V_M_PRIME.enumerate() {
+    //     // self[n] = (aux.v_m_prime(i + 1) - aux.v_m_prime(i))
+    //     //         * (aux.a_m_prime(i + 1) - aux.a_m_prime(i) - F::ONE);
+    //     constraints[n] = (aux_current[i + 1] - aux_current[i])
+    //         * (aux_current[i + 1] - aux_current[i] - E::ONE);
+    // }
 
-    constraints[MEMORY_INCREASING_3] = (current[MEMORY_ADDR_SORTED_3 - builtin_offset]
-        - next[MEMORY_ADDR_SORTED_0 - builtin_offset])
-        * (next[MEMORY_ADDR_SORTED_0 - builtin_offset]
-            - current[MEMORY_ADDR_SORTED_3 - builtin_offset]
-            - ONE);
+    // constraints[4] = (aux_current[5] - aux_current[4])
+    //     * (aux_current[1] - aux_current[0] - E::ONE);
+    // constraints[5] = (aux_current[6] - aux_current[5])
+    //     * (aux_current[2] - aux_current[1] - E::ONE);
+    // constraints[6] = (aux_current[7] - aux_current[6])
+    //     * (aux_current[3] - aux_current[2] - E::ONE);
+    // constraints[7] = (aux_next[4] - aux_current[7])
+    //     * (aux_next[0] - aux_current[3] - E::ONE);
 
-    constraints[MEMORY_CONSISTENCY_0] = (current[MEMORY_VALUES_SORTED_0 - builtin_offset]
-        - current[MEMORY_VALUES_SORTED_1 - builtin_offset])
-        * (current[MEMORY_ADDR_SORTED_1 - builtin_offset]
-            - current[MEMORY_ADDR_SORTED_0 - builtin_offset]
-            - ONE);
 
-    constraints[MEMORY_CONSISTENCY_1] = (current[MEMORY_VALUES_SORTED_1 - builtin_offset]
-        - current[MEMORY_VALUES_SORTED_2 - builtin_offset])
-        * (current[MEMORY_ADDR_SORTED_2 - builtin_offset]
-            - current[MEMORY_ADDR_SORTED_1 - builtin_offset]
-            - ONE);
+    // Cumulative product step
+    // for (i, n) in P_M.enumerate() {
+    //     let a_m: F = curr.a_m(i + 1).into();
+    //     let v_m: F = curr.v_m(i + 1).into();
+    //     self[n] = (z - (aux.a_m_prime(i + 1) + alpha * aux.v_m_prime(i + 1))) * aux.p_m(i + 1)
+    //         - (z - (a_m + alpha * v_m)) * aux.p_m(i);
+    // }
 
-    constraints[MEMORY_CONSISTENCY_2] = (current[MEMORY_VALUES_SORTED_2 - builtin_offset]
-        - current[MEMORY_VALUES_SORTED_3 - builtin_offset])
-        * (current[MEMORY_ADDR_SORTED_3 - builtin_offset]
-            - current[MEMORY_ADDR_SORTED_2 - builtin_offset]
-            - ONE);
-
-    constraints[MEMORY_CONSISTENCY_3] = (current[MEMORY_VALUES_SORTED_3 - builtin_offset]
-        - next[MEMORY_VALUES_SORTED_0 - builtin_offset])
-        * (next[MEMORY_ADDR_SORTED_0 - builtin_offset]
-            - current[MEMORY_ADDR_SORTED_3 - builtin_offset]
-            - ONE);
 }

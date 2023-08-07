@@ -321,21 +321,37 @@ pub fn build_cairo_execution_trace(
  
      // Build Cairo trace columns to instantiate TraceTable struct as defined in the trace layout
      let mut trace_cols: Vec<Vec<Felt252>> = Vec::new();
+     // flags 0~15
      (0..trace_repr_flags.len()).for_each(|n| trace_cols.push(trace_repr_flags[n].clone()));
+     // res   16
      trace_cols.push(res);
+     // ap    17
      trace_cols.push(aps);
+     // fp    18
      trace_cols.push(fps);
+     // pc    19
      trace_cols.push(pcs);
+     // dst_addr 20
      trace_cols.push(dst_addrs);
+     // op0_addr 21
      trace_cols.push(op0_addrs);
+     // op1_addr 22
      trace_cols.push(op1_addrs);
+     // inst    23
      trace_cols.push(instructions);
+     // dst    24
      trace_cols.push(dsts);
+     // op0    25
      trace_cols.push(op0s);
+     // op1   26
      trace_cols.push(op1s);
+     //off_dst, off_op0, off_op1    27,28,29
      (0..trace_repr_offsets.len()).for_each(|n| trace_cols.push(trace_repr_offsets[n].clone()));
+     // t0 30
      trace_cols.push(t0);
+     // t1 31
      trace_cols.push(t1);
+     // mul 32
      trace_cols.push(mul);
      trace_cols.push(selector);
  

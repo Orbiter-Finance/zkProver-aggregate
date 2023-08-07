@@ -5,7 +5,7 @@ use winterfell::{AirContext, Air, math::{ToElements, FieldElement, fields::f128:
 
 use crate::cairo::{felt252::BaseElement as Felt252, air::constraints::{MEM_A_TRACE_OFFSET, MEM_P_TRACE_OFFSET}};
 
-use self::constraints::{evaluate_instr_constraints, evaluate_operand_constraints, evaluate_register_constraints, enforce_selector, evaluate_opcode_constraints, memory_is_increasing, BUILTIN_OFFSET};
+use self::constraints::{evaluate_instr_constraints, evaluate_operand_constraints, evaluate_register_constraints, enforce_selector, evaluate_opcode_constraints, BUILTIN_OFFSET, evaluate_aux_memory_constraints};
 
 use super::{register_states::RegisterStates, cairo_mem::CairoMemory};
 
@@ -170,17 +170,31 @@ impl Air for CairoAIR {
             TransitionConstraintDegree::new(3), // 30 ASSERT_EQ
 
             TransitionConstraintDegree::new(1), // 31
-            // TransitionConstraintDegree::new(1), // 32 MEMORY_INCREASING_1
-            // TransitionConstraintDegree::new(1), // 33 MEMORY_INCREASING_2
-            // TransitionConstraintDegree::new(1), // 34 MEMORY_INCREASING_3
-            // TransitionConstraintDegree::new(1), // 35 MEMORY_CONSISTENCY_0
-            // TransitionConstraintDegree::new(1), // 36 MEMORY_CONSISTENCY_1
-            // TransitionConstraintDegree::new(1), // 37 MEMORY_CONSISTENCY_2
-            // TransitionConstraintDegree::new(1), // 38 MEMORY_CONSISTENCY_3
 
         ]);
 
-        // let mut aux_degrees =  vec![];
+        let mut aux_degrees =  vec![
+            // Memory constraints
+            TransitionConstraintDegree::new(2), // A_M_PRIME 0
+            TransitionConstraintDegree::new(2), //     "     1
+            TransitionConstraintDegree::new(2), //     "     2
+            TransitionConstraintDegree::new(2), //     "     3
+            TransitionConstraintDegree::new(1), // V_M_PRIME 0
+            TransitionConstraintDegree::new(1), //     "     1
+            TransitionConstraintDegree::new(1), //     "     2
+            TransitionConstraintDegree::new(1), //     "     3
+            TransitionConstraintDegree::new(1), //    P_M    0
+            TransitionConstraintDegree::new(1), //     "     1
+            TransitionConstraintDegree::new(1), //     "     2
+            TransitionConstraintDegree::new(1), //     "     3
+            // Range check constraints
+            TransitionConstraintDegree::new(1), // A_RC_PRIME 0
+            TransitionConstraintDegree::new(1), //     "      1
+            TransitionConstraintDegree::new(1), //     "      2
+            TransitionConstraintDegree::new(1), //    P_RC    0
+            TransitionConstraintDegree::new(1), //     "      1
+            TransitionConstraintDegree::new(1), //     "      2
+        ];
 
         // let mut num_transition_constraints = 49;
         // let mut num_transition_exemptions = 2;
@@ -191,7 +205,15 @@ impl Air for CairoAIR {
         // let context = 
         //     AirContext::new_multi_segment(trace_info, main_degrees, aux_degrees, 4, 0, options)
         //     .set_num_transition_exemptions(num_transition_exemptions);
-        let context = AirContext::new(trace_info, main_degrees, 1, options);
+        // let context = AirContext::new(trace_info, main_degrees, 1, options);
+        let context = AirContext::new_multi_segment(
+            trace_info, 
+            main_degrees, 
+            aux_degrees, 
+            1, 
+            1, 
+            options
+        );
     
         Self {
             context,
@@ -216,9 +238,12 @@ impl Air for CairoAIR {
             F: FieldElement<BaseField = Self::BaseField>,
             E: FieldElement<BaseField = Self::BaseField> + winterfell::math::ExtensionOf<F>, 
     {
-        let curr = main_frame.current();
-        let aux = aux_frame.current();
-        // memory_is_increasing(result, current, next, builtin_offset);
+        let main_current = main_frame.current();
+        let main_next = main_frame.next();
+        let aux_current = aux_frame.current();
+        let aux_next = aux_frame.next();
+        let random_elements = aux_rand_elements.get_segment_elements(0);
+        evaluate_aux_memory_constraints(result, main_current, main_next, aux_current, aux_next, random_elements);
     }
 
     fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
@@ -245,6 +270,15 @@ impl Air for CairoAIR {
             // Assertion::single(MEM_P_TRACE_OFFSET, 0, self.pub_inputs.ap_init),
             // Assertion::single(MEM_P_TRACE_OFFSET, last_step, self.pub_inputs.ap_final),
             Assertion::single(15, 0, Self::BaseField::from(0_u16)),
+        ]
+    }
+
+    fn get_aux_assertions<E: FieldElement<BaseField = Self::BaseField>>(
+            &self,
+            aux_rand_elements: &winter_air::AuxTraceRandElements<E>,
+        ) -> Vec<Assertion<E>> {
+        vec![
+            Assertion::single(1, 0, E::from(0_u16)),
         ]
     }
 }

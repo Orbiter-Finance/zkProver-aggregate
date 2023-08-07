@@ -3,7 +3,7 @@ use crate::Felt252;
 use crate::cairo::air::{PublicInputs, MemorySegmentMap, MemorySegment};
 use crate::cairo::cairo_layout::CairoLayout;
 use crate::cairo::cairo_mem::CairoMemory;
-use crate::cairo::cairo_trace::CairoTraceTable;
+use crate::cairo::cairo_trace::{CairoTraceTable, CairoWinterTraceTable};
 use crate::cairo::execution_trace::build_main_trace;
 use crate::cairo::register_states::RegisterStates;
 use crate::utils::print_trace;
@@ -211,22 +211,22 @@ pub fn run_program(
 pub fn generate_prover_args(
     program_content: &[u8],
     output_range: &Option<Range<u64>>,
-) -> Result<(TraceTable<Felt252>, PublicInputs), Error>{
+) -> Result<(CairoWinterTraceTable, PublicInputs), Error>{
 
     let (register_states, memory, program_size, range_check_builtin_range) =
         run_program(None, CairoLayout::Plain, program_content).unwrap();
-
-    // register_states.print_trace();
-    println!("programe_size {:?} range_check_builtin_range {:?}", program_size, range_check_builtin_range);
     
     let memory_segments = create_memory_segment_map(range_check_builtin_range, output_range);
 
+     // register_states.print_trace();
+    //  println!("programe_size {:?} range_check_builtin_range {:?} memory_segment {:?}", program_size, range_check_builtin_range, memory_segments);
 
     let mut pub_inputs =
         PublicInputs::from_regs_and_mem(&register_states, &memory, program_size, &memory_segments);
     
     let main_trace = build_main_trace(&register_states, &memory, &mut pub_inputs);
-    let winter_main_trace = TraceTable::init(main_trace.cols());
+    // let winter_main_trace = TraceTable::init(main_trace.cols());
+    let winter_main_trace = CairoWinterTraceTable::init(main_trace.cols(),pub_inputs.clone());
     // print_trace(&winter_main_trace, 8, 7 , Range { start: 3, end: 5 });
     println!("winter_main_trace {:?}", winter_main_trace.length());
 
