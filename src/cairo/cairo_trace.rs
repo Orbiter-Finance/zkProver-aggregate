@@ -276,8 +276,11 @@ where
 {
     let z = rand_elements[0];
     let alpha = rand_elements[1];
+
+    // println!("build_aux_segment_mem z {:?} alpha {:?}", z, alpha);
     // Pack main memory access trace columns into two virtual columns
     let main = trace.main_segment();
+    println!("main Trace num_cols {:?} num_rows {:?}", main.num_cols(), main.num_rows());
 
     let (a, v) = [(FRAME_PC..FRAME_OP1_ADDR+1),(FRAME_INST..FRAME_OP1+1)]
         .iter()
@@ -299,6 +302,7 @@ where
     let mut v_prime = vec![E::ZERO; a.len()];
     let mut a_replaced = a.clone();
     let mut v_replaced = v.clone();
+    println!("a_replaced len {:?} v_replaced len {:?}", a_replaced.len(), v_replaced.len());
     let (pub_a, pub_v) = trace.get_public_mem();
     let l = a.len() - pub_a.len() - 1;
     println!("PRINT l len {:?} pub_a len {:?} pub_v len {:?} a len {:?} v len {:?}", l, pub_a.len(), pub_v.len() ,a.len(), v.len());
@@ -309,11 +313,18 @@ where
     let mut indices = (0..a.len()).collect::<Vec<_>>();
     indices.sort_by_key(|&i| a_replaced[i].as_int());
     for (i, j) in indices.iter().copied().enumerate() {
+        
         a_prime[i] = a_replaced[j].into();
         v_prime[i] = v_replaced[j].into();
+        // if i != 0 {
+        //     assert!(((a_prime[i] - a_prime[i-1]) * (a_prime[i] - a_prime[i-1] - E::ONE)) == E::ZERO, "a_prime[{:?}] {:?}, a_prime[{:?}] {:?}", i, a_prime[i], i-1, a_prime[i-1]);
+        //     assert!(((v_prime[i] - v_prime[i-1]) * (a_prime[i] - a_prime[i-1] - E::ONE)) == E::ZERO, "v_prime[{:?}] {:?}, v_prime[{:?}] {:?} \n a_prime[{:?}] {:?}, a_prime[{:?}] {:?}", 
+        //     i, v_prime[i], i-1, v_prime[i-1], i, a_prime[i], i-1, a_prime[i-1]);
+        // }
     }
     // Construct virtual column of computed permutation products
     let mut p: Vec<E> = vec![E::ZERO; trace.length() * MEM_A_TRACE_WIDTH];
+    println!("permutation products len {:?}", p.len());
     let a_0: E = a[0].into();
     let v_0: E = v[0].into();
     p[0] = (z - (a_0 + alpha * v_0).into()) / (z - (a_prime[0] + alpha * v_prime[0]).into());

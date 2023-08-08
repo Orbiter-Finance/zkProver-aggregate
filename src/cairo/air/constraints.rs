@@ -21,7 +21,7 @@ const A_RC_PRIME: Range<usize> = range(12, 3);
 const P_RC: Range<usize> = range(15, 3);
 
 
-pub const MEM_A_TRACE_WIDTH: usize = 4;
+
 
 // AUX TRACE LAYOUT (Range check)
 // -----------------------------------------------------------------------------------------
@@ -82,20 +82,20 @@ const CALL_2: usize = 29;
 const ASSERT_EQ: usize = 30;
 
 // Auxiliary constraint identifiers
-const MEMORY_INCREASING_0: usize = 31;
-const MEMORY_INCREASING_1: usize = 32;
-const MEMORY_INCREASING_2: usize = 33;
-const MEMORY_INCREASING_3: usize = 34;
+const MEMORY_INCREASING_0: usize = 0;
+const MEMORY_INCREASING_1: usize = 1;
+const MEMORY_INCREASING_2: usize = 2;
+const MEMORY_INCREASING_3: usize = 3;
 
-const MEMORY_CONSISTENCY_0: usize = 35;
-const MEMORY_CONSISTENCY_1: usize = 36;
-const MEMORY_CONSISTENCY_2: usize = 37;
-const MEMORY_CONSISTENCY_3: usize = 38;
+const MEMORY_CONSISTENCY_0: usize = 4;
+const MEMORY_CONSISTENCY_1: usize = 5;
+const MEMORY_CONSISTENCY_2: usize = 6;
+const MEMORY_CONSISTENCY_3: usize = 7;
 
-const PERMUTATION_ARGUMENT_0: usize = 39;
-const PERMUTATION_ARGUMENT_1: usize = 40;
-const PERMUTATION_ARGUMENT_2: usize = 41;
-const PERMUTATION_ARGUMENT_3: usize = 42;
+const PERMUTATION_ARGUMENT_0: usize = 8;
+const PERMUTATION_ARGUMENT_1: usize = 9;
+const PERMUTATION_ARGUMENT_2: usize = 10;
+const PERMUTATION_ARGUMENT_3: usize = 11;
 
 const RANGE_CHECK_INCREASING_0: usize = 43;
 const RANGE_CHECK_INCREASING_1: usize = 44;
@@ -108,6 +108,8 @@ const RANGE_CHECK_2: usize = 48;
 // Range-check builtin value decomposition constraint
 const RANGE_CHECK_BUILTIN: usize = 49;
 
+
+pub const MEM_A_TRACE_WIDTH: usize = 4;
 // Frame row identifiers
 //  - Flags
 const F_DST_FP: usize = 0;
@@ -164,20 +166,20 @@ pub const RANGE_CHECK_COL_2: usize = 44;
 pub const RANGE_CHECK_COL_3: usize = 45;
 
 // Auxiliary memory columns
-pub const MEMORY_ADDR_SORTED_0: usize = 46;
-pub const MEMORY_ADDR_SORTED_1: usize = 47;
-pub const MEMORY_ADDR_SORTED_2: usize = 48;
-pub const MEMORY_ADDR_SORTED_3: usize = 49;
+pub const MEMORY_ADDR_SORTED_0: usize = 0;
+pub const MEMORY_ADDR_SORTED_1: usize = 1;
+pub const MEMORY_ADDR_SORTED_2: usize = 2;
+pub const MEMORY_ADDR_SORTED_3: usize = 3;
 
-pub const MEMORY_VALUES_SORTED_0: usize = 50;
-pub const MEMORY_VALUES_SORTED_1: usize = 51;
-pub const MEMORY_VALUES_SORTED_2: usize = 52;
-pub const MEMORY_VALUES_SORTED_3: usize = 53;
+pub const MEMORY_VALUES_SORTED_0: usize = 4;
+pub const MEMORY_VALUES_SORTED_1: usize = 5;
+pub const MEMORY_VALUES_SORTED_2: usize = 6;
+pub const MEMORY_VALUES_SORTED_3: usize = 7;
 
-pub const PERMUTATION_ARGUMENT_COL_0: usize = 54;
-pub const PERMUTATION_ARGUMENT_COL_1: usize = 55;
-pub const PERMUTATION_ARGUMENT_COL_2: usize = 56;
-pub const PERMUTATION_ARGUMENT_COL_3: usize = 57;
+pub const PERMUTATION_ARGUMENT_COL_0: usize = 8;
+pub const PERMUTATION_ARGUMENT_COL_1: usize = 9;
+pub const PERMUTATION_ARGUMENT_COL_2: usize = 10;
+pub const PERMUTATION_ARGUMENT_COL_3: usize = 11;
 
 pub const PERMUTATION_ARGUMENT_RANGE_CHECK_COL_1: usize = 58;
 pub const PERMUTATION_ARGUMENT_RANGE_CHECK_COL_2: usize = 59;
@@ -338,52 +340,56 @@ pub fn evaluate_aux_memory_constraints<F, E>(
     let z = random_elements[0];
     let alpha = random_elements[1];
     let TWO = E::ONE + E::ONE;
+    let ONE = E::ONE;
+    // println!("evaluate_aux_memory_constraints z {:?} alpha {:?}", z, alpha);
+
+    let ap0_next = aux_next[MEMORY_ADDR_SORTED_0];
+    let ap0 = aux_current[MEMORY_ADDR_SORTED_0];
+    let ap1 = aux_current[MEMORY_ADDR_SORTED_1];
+    let ap2 = aux_current[MEMORY_ADDR_SORTED_2];
+    let ap3 = aux_current[MEMORY_ADDR_SORTED_3];
+
+    let vp0_next = aux_next[MEMORY_VALUES_SORTED_0];
+    let vp0 = aux_current[MEMORY_VALUES_SORTED_0];
+    let vp1 = aux_current[MEMORY_VALUES_SORTED_1];
+    let vp2 = aux_current[MEMORY_VALUES_SORTED_2];
+    let vp3 = aux_current[MEMORY_VALUES_SORTED_3];
 
 
     // Continuity constraint
-    // for (i, n) in A_M_PRIME.enumerate() {
-    //     // constraints[n] = (aux.a_m_prime(i + 1) - aux.a_m_prime(i))
-    //     // * (aux.a_m_prime(i + 1) - aux.a_m_prime(i) - F::ONE);
-    //     constraints[n] = (aux_current[i + 1] - aux_current[i]) 
-    //         * (aux_current[i + 1] - aux_current[i] - E::ONE);
-    //     // println!("constarints {:?}", (aux_current[i+1] - aux_current[i]) 
-    //     // * (aux_current[i + 1] - aux_current[i] - E::ONE));
-    //     // println!("aux_current[{:?}] - aux_current[{:?}] {:?}",i+1, i ,aux_current[i+1] - aux_current[i]);
-    //     // println!("aux_current[{:?}] - aux_current[{:?}] - E::ONE) {:?}",i+1, i, aux_current[i + 1] - aux_current[i] - E::ONE);
-    // }
-    constraints[0] = (aux_current[1] - aux_current[0])
-        * (aux_current[1] - aux_current[0] - E::ONE);
-    constraints[1] = (aux_current[2] - aux_current[1])
-        * (aux_current[2] - aux_current[1] - E::ONE);
-    constraints[2] = (aux_current[3] - aux_current[2])
-        * (aux_current[3] - aux_current[2] - E::ONE);
-    constraints[3] = (aux_next[0] - aux_current[3])
-        * (aux_next[0] - aux_current[3] - E::ONE);
+    constraints[MEMORY_INCREASING_0] = (ap1 - ap0) * (ap1 - ap0 - ONE);
+    constraints[MEMORY_INCREASING_1] = (ap2 - ap1) * (ap2 - ap1 - ONE);
+    constraints[MEMORY_INCREASING_2] = (ap3 - ap2) * (ap3 - ap2 - ONE);
+    constraints[MEMORY_INCREASING_3] = (ap0_next - ap3) * (ap0_next - ap3 - ONE);
 
     // Single-valued constraint
-    // for (i, n) in V_M_PRIME.enumerate() {
-    //     // self[n] = (aux.v_m_prime(i + 1) - aux.v_m_prime(i))
-    //     //         * (aux.a_m_prime(i + 1) - aux.a_m_prime(i) - F::ONE);
-    //     constraints[n] = (aux_current[i + 1] - aux_current[i])
-    //         * (aux_current[i + 1] - aux_current[i] - E::ONE);
-    // }
-
-    // constraints[4] = (aux_current[5] - aux_current[4])
-    //     * (aux_current[1] - aux_current[0] - E::ONE);
-    // constraints[5] = (aux_current[6] - aux_current[5])
-    //     * (aux_current[2] - aux_current[1] - E::ONE);
-    // constraints[6] = (aux_current[7] - aux_current[6])
-    //     * (aux_current[3] - aux_current[2] - E::ONE);
-    // constraints[7] = (aux_next[4] - aux_current[7])
-    //     * (aux_next[0] - aux_current[3] - E::ONE);
+    constraints[MEMORY_CONSISTENCY_0] = (vp1 - vp0) * (ap1 - ap0 - E::ONE);
+    constraints[MEMORY_CONSISTENCY_1] = (vp2 - vp1) * (ap2 - ap1 - E::ONE);
+    constraints[MEMORY_CONSISTENCY_2] = (vp3 - vp2) * (ap3 - ap2 - E::ONE);
+    constraints[MEMORY_CONSISTENCY_3] = (vp0_next - vp3) * (ap0_next - ap3 - E::ONE);
 
 
     // Cumulative product step
-    // for (i, n) in P_M.enumerate() {
-    //     let a_m: F = curr.a_m(i + 1).into();
-    //     let v_m: F = curr.v_m(i + 1).into();
-    //     self[n] = (z - (aux.a_m_prime(i + 1) + alpha * aux.v_m_prime(i + 1))) * aux.p_m(i + 1)
-    //         - (z - (a_m + alpha * v_m)) * aux.p_m(i);
-    // }
+
+    let p0 = aux_current[PERMUTATION_ARGUMENT_COL_0];
+    let p0_next = aux_next[PERMUTATION_ARGUMENT_COL_0];
+    let p1 = aux_current[PERMUTATION_ARGUMENT_COL_1];
+    let p2 = aux_current[PERMUTATION_ARGUMENT_COL_2];
+    let p3 = aux_current[PERMUTATION_ARGUMENT_COL_3];
+
+    let a0_next: E = main_next[FRAME_PC].into();
+    let a1: E = main_current[FRAME_DST_ADDR].into();
+    let a2: E = main_current[FRAME_OP0_ADDR].into();
+    let a3: E = main_current[FRAME_OP1_ADDR].into() ;
+
+    let v0_next: E = main_next[FRAME_INST].into();
+    let v1: E = main_current[FRAME_DST].into();
+    let v2: E = main_current[FRAME_OP0].into();
+    let v3: E = main_current[FRAME_OP1].into();
+
+    constraints[PERMUTATION_ARGUMENT_0] = (z - (ap1 + alpha * vp1)) * p1 - (z - (a1 + alpha * v1)) * p0;
+    constraints[PERMUTATION_ARGUMENT_1] = (z - (ap2 + alpha * vp2)) * p2 - (z - (a2 + alpha * v2)) * p1;
+    constraints[PERMUTATION_ARGUMENT_2] = (z - (ap3 + alpha * vp3)) * p3 - (z - (a3 + alpha * v3)) * p2;
+    constraints[PERMUTATION_ARGUMENT_3] = (z - (ap0_next + alpha * vp0_next)) * p0_next - (z - (a0_next + alpha * v0_next)) * p3;
 
 }

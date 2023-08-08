@@ -54,21 +54,21 @@ pub fn build_main_trace(
     // trace
     let mut main_trace = build_cairo_execution_trace(register_states, memory, public_input);
     println!("build_main_trace cairo-execution trace_length {:?} column_length {:?}", main_trace.n_rows(), main_trace.n_cols);
-    let mut address_cols = main_trace
-        .get_cols(&[FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR])
-        .table;
+    // let mut address_cols = main_trace
+    //     .get_cols(&[FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR])
+    //     .table;
 
-    address_cols.sort_by_key(|x| x.to_string());
-    let (rc_holes, rc_min, rc_max) = get_rc_holes(&main_trace, &[OFF_DST, OFF_OP0, OFF_OP1]);
-    public_input.range_check_min = Some(rc_min);
-    public_input.range_check_max = Some(rc_max);
-    fill_rc_holes(&mut main_trace, rc_holes);
+    // address_cols.sort_by_key(|x| x.to_string());
+    // let (rc_holes, rc_min, rc_max) = get_rc_holes(&main_trace, &[OFF_DST, OFF_OP0, OFF_OP1]);
+    // public_input.range_check_min = Some(rc_min);
+    // public_input.range_check_max = Some(rc_max);
+    // fill_rc_holes(&mut main_trace, rc_holes);
 
-    let mut memory_holes = get_memory_holes(&address_cols, public_input.public_memory.len());
+    // let mut memory_holes = get_memory_holes(&address_cols, public_input.public_memory.len());
 
-    if !memory_holes.is_empty() {
-        fill_memory_holes(&mut main_trace, &mut memory_holes);
-    }
+    // if !memory_holes.is_empty() {
+    //     fill_memory_holes(&mut main_trace, &mut memory_holes);
+    // }
 
     add_pub_memory_dummy_accesses(&mut main_trace, public_input.public_memory.len());
     // println!("build_main_trace add other trace trace_length {:?} column_length {:?}", main_trace.n_rows(), main_trace.n_cols);

@@ -271,6 +271,7 @@ mod tests {
         let (main_trace, pub_inputs) = generate_prover_args(&program_content, &None).unwrap();
         let (stark_proof, pub_inputs_proof) = prove_cairo_trace(main_trace, pub_inputs, &proof_options).unwrap();
         let proof_bytes = stark_proof.to_bytes();
+        // print!("Cairo Stark Proof {:?}", stark_proof);
         println!("Proof size: {:.1} KB", proof_bytes.len() as f64 / 1024f64);
         verify_cairo_proof(stark_proof, pub_inputs_proof);
     }

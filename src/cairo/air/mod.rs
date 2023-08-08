@@ -179,14 +179,14 @@ impl Air for CairoAIR {
             TransitionConstraintDegree::new(2), //     "     1
             TransitionConstraintDegree::new(2), //     "     2
             TransitionConstraintDegree::new(2), //     "     3
-            TransitionConstraintDegree::new(1), // V_M_PRIME 0
-            TransitionConstraintDegree::new(1), //     "     1
-            TransitionConstraintDegree::new(1), //     "     2
-            TransitionConstraintDegree::new(1), //     "     3
-            TransitionConstraintDegree::new(1), //    P_M    0
-            TransitionConstraintDegree::new(1), //     "     1
-            TransitionConstraintDegree::new(1), //     "     2
-            TransitionConstraintDegree::new(1), //     "     3
+            TransitionConstraintDegree::new(2), // V_M_PRIME 0
+            TransitionConstraintDegree::new(2), //     "     1
+            TransitionConstraintDegree::new(2), //     "     2
+            TransitionConstraintDegree::new(2), //     "     3
+            TransitionConstraintDegree::new(2), //    P_M    0
+            TransitionConstraintDegree::new(2), //     "     1
+            TransitionConstraintDegree::new(2), //     "     2
+            TransitionConstraintDegree::new(2), //     "     3
             // Range check constraints
             TransitionConstraintDegree::new(1), // A_RC_PRIME 0
             TransitionConstraintDegree::new(1), //     "      1
