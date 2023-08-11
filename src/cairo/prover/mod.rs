@@ -8,14 +8,16 @@ use crate::Felt252;
 use super::{air::{CairoAIR, PublicInputs}, runner::errors::CairoProverError, cairo_trace::CairoWinterTraceTable};
 
 
+// type CairoProverHasher = winterfell::crypto::hashers::Sha3_256<Felt252>;
+type CairoProverHasher = winterfell::crypto::hashers::Blake3_256<Felt252>;
+
 pub fn prove_cairo_trace(
     trace: CairoWinterTraceTable,
     public_inputs: PublicInputs,
     options: &ProofOptions
 ) -> Result<(StarkProof, PublicInputs), CairoProverError>{
 
-    type Sha3_256_felt = winterfell::crypto::hashers::Sha3_256<Felt252>;
-    let prover = CairoProver::<Sha3_256_felt>::new(public_inputs.clone(), options.clone());
+    let prover = CairoProver::<CairoProverHasher>::new(public_inputs.clone(), options.clone());
     let proof = prover.prove(trace).map_err(CairoProverError::ProverError).unwrap();
     Ok((proof, public_inputs.clone()))
 
@@ -25,10 +27,9 @@ pub fn verify_cairo_proof(
     proof: StarkProof,
     pub_inputs: PublicInputs,
 ) {
-    type Sha3_256_felt = winterfell::crypto::hashers::Sha3_256<Felt252>;
-    type rand_coin = DefaultRandomCoin<Sha3_256_felt>;
+    type rand_coin = DefaultRandomCoin<CairoProverHasher>;
     // verify correct program execution
-    match winterfell::verify::<CairoAIR, Sha3_256_felt, rand_coin>(proof, pub_inputs) {
+    match winterfell::verify::<CairoAIR, CairoProverHasher, rand_coin>(proof, pub_inputs) {
         Ok(_) => println!("Execution verified"),
         Err(err) => println!("Failed to verify execution: {}", err),
     }

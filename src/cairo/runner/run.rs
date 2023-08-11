@@ -214,12 +214,13 @@ pub fn generate_prover_args(
 ) -> Result<(CairoWinterTraceTable, PublicInputs), Error>{
 
     let (register_states, memory, program_size, range_check_builtin_range) =
+        // run_program(None, CairoLayout::Plain, program_content).unwrap();
         run_program(None, CairoLayout::Plain, program_content).unwrap();
     
-    let memory_segments = create_memory_segment_map(range_check_builtin_range, output_range);
+    let memory_segments = create_memory_segment_map(range_check_builtin_range.clone(), output_range);
 
      // register_states.print_trace();
-    //  println!("programe_size {:?} range_check_builtin_range {:?} memory_segment {:?}", program_size, range_check_builtin_range, memory_segments);
+     println!("programe_size {:?} range_check_builtin_range {:?} memory_segment {:?}", program_size, range_check_builtin_range, memory_segments);
 
     let mut pub_inputs =
         PublicInputs::from_regs_and_mem(&register_states, &memory, program_size, &memory_segments);
