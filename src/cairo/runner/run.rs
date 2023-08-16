@@ -256,8 +256,11 @@ mod tests {
 
     use crate::cairo::air::CairoAIR;
     use crate::cairo::air::proof_options::CairoProofOptions;
-    use crate::cairo::prover::{prove_cairo_trace, verify_cairo_proof};
+    use crate::cairo::prover::{prove_cairo_trace, verify_cairo_proof, CairoProverHasher};
     use crate::cairo::register_states;
+    use crate::circom_prover::circom::circom_prove;
+    use crate::circom_prover::utils::LoggingLevel;
+    use crate::utils::json::cairo_proof_to_json;
     use super::*;
     use super::run_program;
 
@@ -270,10 +273,14 @@ mod tests {
         let proof_options = CairoProofOptions::default().into_inner();
 
         let (main_trace, pub_inputs) = generate_prover_args(&program_content, &None).unwrap();
-        let (stark_proof, pub_inputs_proof) = prove_cairo_trace(main_trace, pub_inputs, &proof_options).unwrap();
+        let (stark_proof, pub_inputs_proof, prover) = prove_cairo_trace::<CairoProverHasher>(main_trace.clone(), pub_inputs, &proof_options).unwrap();
         let proof_bytes = stark_proof.to_bytes();
         // print!("Cairo Stark Proof {:?}", stark_proof);
         println!("Proof size: {:.1} KB", proof_bytes.len() as f64 / 1024f64);
-        verify_cairo_proof(stark_proof, pub_inputs_proof);
+        verify_cairo_proof(stark_proof.clone(), pub_inputs_proof);
+
+
+        circom_prove(stark_proof, prover, main_trace,"sum", LoggingLevel::Default)
+
     }
 }

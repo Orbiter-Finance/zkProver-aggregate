@@ -659,7 +659,7 @@ mod test {
     use winter_air::ProofOptions;
     use winterfell::math::FieldElement;
 
-    use crate::{cairo::{execution_trace::{decompose_rc_values_into_trace_columns, get_rc_holes, fill_rc_holes, get_memory_holes, fill_memory_holes}, cairo_layout::CairoLayout, runner::run::{run_program, generate_prover_args}, air::{PublicInputs, MemorySegmentMap, constraints::{OFF_DST, OFF_OP1, FRAME_SELECTOR, FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR}, proof_options::CairoProofOptions}, cairo_trace::CairoTraceTable, prover::prove_cairo_trace}, Felt252};
+    use crate::{cairo::{execution_trace::{decompose_rc_values_into_trace_columns, get_rc_holes, fill_rc_holes, get_memory_holes, fill_memory_holes}, cairo_layout::CairoLayout, runner::run::{run_program, generate_prover_args}, air::{PublicInputs, MemorySegmentMap, constraints::{OFF_DST, OFF_OP1, FRAME_SELECTOR, FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR}, proof_options::CairoProofOptions}, cairo_trace::CairoTraceTable}, Felt252};
 
     use super::{build_cairo_execution_trace, build_main_trace};
 

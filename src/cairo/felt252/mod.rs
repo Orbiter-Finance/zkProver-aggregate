@@ -12,11 +12,14 @@ use core::{
     },
     slice,
 };
+use serde::{Serialize, Serializer};
 pub use winterfell::math::{ExtensibleField, FieldElement, StarkField};
 use winter_utils::{
     collections::Vec, string::String, AsBytes, ByteReader, ByteWriter, Deserializable,
     DeserializationError, Randomizable, Serializable,
 };
+
+use num_bigint::BigUint;
 
 pub mod felt252_fibo;
 
@@ -152,6 +155,17 @@ impl Fr {
         let mut result = [0u8; 32];
         write_be_bytes(self.to_raw().0, &mut result);
         result.to_vec()
+    }
+
+    pub fn to_be_string(&self) -> String {
+        let raw_big_int = self.to_raw();
+        let mut acc = BigUint::from(0_u8);
+        acc += BigUint::from(raw_big_int.0[3]);
+        acc += BigUint::from(raw_big_int.0[2]) << 64;
+        acc += BigUint::from(raw_big_int.0[1]) << 128;
+        acc += BigUint::from(raw_big_int.0[0]) << 256;
+
+        return acc.to_string();
     }
 }
 
@@ -804,6 +818,15 @@ impl AsBytes for BaseElement {
 
 // SERIALIZATION / DESERIALIZATION
 // ------------------------------------------------------------------------------------------------
+
+impl Serialize for BaseElement {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&(self.0.to_be_string()))
+    }
+}
 
 impl Serializable for BaseElement {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {

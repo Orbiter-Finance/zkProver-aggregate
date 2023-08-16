@@ -2,6 +2,8 @@ use std::ops::Range;
 
 use winterfell::{math::StarkField, TraceTable, Trace};
 
+pub mod json;
+
 /// Prints out an execution trace.
 pub fn print_trace<E: StarkField>(
     trace: &TraceTable<E>,

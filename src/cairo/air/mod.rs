@@ -1,6 +1,8 @@
 use std::{collections::HashMap, ops::Range};
 
+use serde::{Serialize, ser::SerializeTuple};
 use winter_air::Assertion;
+use winter_utils::{Serializable, ByteWriter};
 use winterfell::{AirContext, Air, math::{ToElements, FieldElement, fields::f128::BaseElement}, TraceInfo, ProofOptions, EvaluationFrame, TransitionConstraintDegree};
 
 use crate::cairo::{felt252::BaseElement as Felt252, air::constraints::{MEM_A_TRACE_OFFSET, MEM_P_TRACE_OFFSET}};
@@ -20,6 +22,19 @@ pub enum MemorySegment {
 }
 
 pub type MemorySegmentMap = HashMap<MemorySegment, Range<u64>>;
+
+/// Trait for compatibility between implementations of [winterfell::Air::PublicInputs]
+/// and this crate.
+///
+/// It simply requires that the number of public inputs be specified (through the
+/// [NUM_PUB_INPUTS](WinterPublicInputs::NUM_PUB_INPUTS) constant).
+pub trait WinterPublicInputs: Serialize + Clone {
+    const NUM_PUB_INPUTS: usize;
+}
+
+impl WinterPublicInputs for PublicInputs {
+    const NUM_PUB_INPUTS: usize = 6;
+}
 
 #[derive(Debug, Clone)]
 pub struct PublicInputs {
@@ -42,6 +57,33 @@ pub struct PublicInputs {
     pub public_memory: HashMap<Felt252, Felt252>,
     pub num_steps: usize, // number of execution steps
 
+}
+
+impl Serialize for PublicInputs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_tuple(6)?;
+        state.serialize_element(&self.pc_init);
+        state.serialize_element(&self.ap_init);
+        state.serialize_element(&self.fp_init);
+        state.serialize_element(&self.pc_final);
+        state.serialize_element(&self.ap_final);
+        state.serialize_element(&self.num_steps);
+        state.end()
+    }
+}
+
+impl Serializable for PublicInputs {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write(self.pc_init);
+        target.write(self.ap_init);
+        target.write(self.fp_init);
+        target.write(self.pc_init);
+        target.write(self.ap_final);
+        target.write(Felt252::from(self.num_steps as u64));
+    }
 }
 
 impl ToElements<Felt252> for PublicInputs {
@@ -196,24 +238,18 @@ impl Air for CairoAIR {
             TransitionConstraintDegree::new(1), //     "      2
         ];
 
-        // let mut num_transition_constraints = 49;
-        // let mut num_transition_exemptions = 2;
-
-        // let mut transition_exemptions = vec![];
-        // transition_exemptions.extend(vec![1; main_degrees.len()]);
-        // transition_exemptions.extend(vec![1; aux_degrees.len()]);
         // let context = 
         //     AirContext::new_multi_segment(trace_info, main_degrees, aux_degrees, 4, 0, options)
         //     .set_num_transition_exemptions(num_transition_exemptions);
-        // let context = AirContext::new(trace_info, main_degrees, 1, options);
-        let context = AirContext::new_multi_segment(
-            trace_info, 
-            main_degrees, 
-            aux_degrees, 
-            1, 
-            1, 
-            options
-        );
+        let context = AirContext::new(trace_info, main_degrees, 1, options);
+        // let context = AirContext::new_multi_segment(
+        //     trace_info, 
+        //     main_degrees, 
+        //     aux_degrees, 
+        //     1, 
+        //     1, 
+        //     options
+        // );
     
         Self {
             context,
@@ -227,24 +263,24 @@ impl Air for CairoAIR {
         &self.context
     }
 
-    fn evaluate_aux_transition<F, E>(
-            &self,
-            main_frame: &EvaluationFrame<F>,
-            aux_frame: &EvaluationFrame<E>,
-            periodic_values: &[F],
-            aux_rand_elements: &winter_air::AuxTraceRandElements<E>,
-            result: &mut [E],
-    ) where
-            F: FieldElement<BaseField = Self::BaseField>,
-            E: FieldElement<BaseField = Self::BaseField> + winterfell::math::ExtensionOf<F>, 
-    {
-        let main_current = main_frame.current();
-        let main_next = main_frame.next();
-        let aux_current = aux_frame.current();
-        let aux_next = aux_frame.next();
-        let random_elements = aux_rand_elements.get_segment_elements(0);
-        evaluate_aux_memory_constraints(result, main_current, main_next, aux_current, aux_next, random_elements);
-    }
+    // fn evaluate_aux_transition<F, E>(
+    //         &self,
+    //         main_frame: &EvaluationFrame<F>,
+    //         aux_frame: &EvaluationFrame<E>,
+    //         periodic_values: &[F],
+    //         aux_rand_elements: &winter_air::AuxTraceRandElements<E>,
+    //         result: &mut [E],
+    // ) where
+    //         F: FieldElement<BaseField = Self::BaseField>,
+    //         E: FieldElement<BaseField = Self::BaseField> + winterfell::math::ExtensionOf<F>, 
+    // {
+    //     let main_current = main_frame.current();
+    //     let main_next = main_frame.next();
+    //     let aux_current = aux_frame.current();
+    //     let aux_next = aux_frame.next();
+    //     let random_elements = aux_rand_elements.get_segment_elements(0);
+    //     evaluate_aux_memory_constraints(result, main_current, main_next, aux_current, aux_next, random_elements);
+    // }
 
     fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
         &self,
@@ -273,12 +309,12 @@ impl Air for CairoAIR {
         ]
     }
 
-    fn get_aux_assertions<E: FieldElement<BaseField = Self::BaseField>>(
-            &self,
-            aux_rand_elements: &winter_air::AuxTraceRandElements<E>,
-        ) -> Vec<Assertion<E>> {
-        vec![
-            Assertion::single(1, 0, E::from(0_u16)),
-        ]
-    }
+    // fn get_aux_assertions<E: FieldElement<BaseField = Self::BaseField>>(
+    //         &self,
+    //         aux_rand_elements: &winter_air::AuxTraceRandElements<E>,
+    //     ) -> Vec<Assertion<E>> {
+    //     vec![
+    //         Assertion::single(1, 0, E::from(0_u16)),
+    //     ]
+    // }
 }

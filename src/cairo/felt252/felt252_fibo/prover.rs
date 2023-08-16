@@ -1,3 +1,5 @@
+use winterfell::DefaultTraceLde;
+
 use super::{
     air::FibSmall, FETest, DefaultRandomCoin, ElementHasher, FieldElement, PhantomData,
     ProofOptions, Prover, Trace, TraceTable, TRACE_WIDTH,
@@ -52,6 +54,7 @@ where
     type Trace = TraceTable<FETest>;
     type HashFn = H;
     type RandomCoin = DefaultRandomCoin<Self::HashFn>;
+    type TraceLde<E: FieldElement<BaseField = Self::BaseField>> = DefaultTraceLde<E, Self::HashFn>;
 
     fn get_pub_inputs(&self, trace: &Self::Trace) -> FETest {
         let last_step = trace.length() - 1;

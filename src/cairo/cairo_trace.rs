@@ -20,9 +20,13 @@ use super::air::constraints::P_RC_WIDTH;
 use super::air::constraints::V_M_PRIME_WIDTH;
 use super::{air::{constraints::{FRAME_PC, FRAME_DST_ADDR, FRAME_OP0_ADDR, FRAME_OP1_ADDR, FRAME_INST, FRAME_OP1, MEM_A_TRACE_WIDTH}, MemorySegmentMap, MemorySegment}, cairo_mem::CairoMemory};
 
-const AUX_WIDTHS: [usize; 1] = [12];
-const AUX_RANDS: [usize; 1] = [2];
+// const AUX_WIDTHS: [usize; 1] = [12];
+// const AUX_RANDS: [usize; 1] = [2];
 
+const AUX_WIDTHS: [usize; 1] = [0];
+const AUX_RANDS: [usize; 1] = [0];
+
+#[derive(Clone)]
 pub struct CairoWinterTraceTable {
     layout: TraceLayout,
     trace: ColMatrix<Felt252>,
